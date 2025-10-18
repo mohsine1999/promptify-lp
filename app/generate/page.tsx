@@ -28,25 +28,66 @@ export default function GeneratePage() {
   return (
     <div className="grid">
       <div className="card">
-        <h1>إنشاء صفحة جديدة</h1>
-        <label>رابط المنتج</label>
-        <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://www.aliexpress.com/item/..." />
-        <label>وصف موجز (اختياري)</label>
-        <textarea value={brief} onChange={e=>setBrief(e.target.value)} rows={4} placeholder="مثال: لهجة ودية، ركّز على حل الألم، وعد التسليم السريع..." />
-        <label>اللهجة</label>
-        <select value={dialect} onChange={e=>setDialect(e.target.value as any)}>
-          <option value="ar-msa">العربية الفصحى</option>
-          <option value="ar-darija">الدارجة المغربية</option>
-        </select>
-        <label>المزوّد</label>
-        <select value={provider} onChange={e=>setProvider(e.target.value as any)}>
-          <option value="openai">OpenAI (افتراضي)</option>
-          <option value="gemini">Gemini</option>
-        </select>
-        <div style={{display:"flex", gap: 12, marginTop: 12}}>
-          <button className="primary" onClick={run} disabled={!url || busy}>{busy ? "جاري التوليد..." : "توليد الصفحة"}</button>
+        <h1 style={{ marginTop: 0, marginBottom: 12 }}>إنشاء صفحة هبوط جديدة</h1>
+        <p className="muted" style={{ margin: 0, maxWidth: "68ch" }}>
+          الصق رابط المنتج الذي تريد الترويج له وأخبر Promptify عن التوجيه الإبداعي واللهجة المناسبة. سنتولى نحن
+          جمع الصور والوصف وصياغة نسخة احترافية يمكنك تعديلها فوراً في المحرّر.
+        </p>
+
+        <form className="grid" style={{ marginTop: 24 }} onSubmit={e => { e.preventDefault(); if (!busy) run(); }}>
+          <div>
+            <label>رابط المنتج</label>
+            <input
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://www.aliexpress.com/item/..."
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label>وصف موجز (اختياري)</label>
+            <textarea
+              value={brief}
+              onChange={e => setBrief(e.target.value)}
+              rows={4}
+              placeholder="مثال: لهجة ودّية، ركّز على حل الألم، وعد بالتسليم في 48 ساعة..."
+            />
+          </div>
+          <div className="grid-2">
+            <div>
+              <label>اللهجة</label>
+              <select value={dialect} onChange={e => setDialect(e.target.value as any)}>
+                <option value="ar-msa">العربية الفصحى</option>
+                <option value="ar-darija">الدارجة المغربية</option>
+              </select>
+            </div>
+            <div>
+              <label>المزوّد</label>
+              <select value={provider} onChange={e => setProvider(e.target.value as any)}>
+                <option value="openai">OpenAI (افتراضي)</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </div>
+          </div>
+          <div className="editor-actions" style={{ marginTop: 12 }}>
+            <button className="primary" type="submit" disabled={!url || busy}>
+              {busy ? "جاري التوليد..." : "توليد الصفحة"}
+            </button>
+            <button type="button" className="btn ghost" onClick={() => { setUrl(""); setBrief(""); }} disabled={busy}>
+              مسح الحقول
+            </button>
+          </div>
+        </form>
+
+        {err && <p className="alert-error">{err}</p>}
+
+        <div className="info-banner" style={{ marginTop: 28 }}>
+          <strong>تلميح للخبراء</strong>
+          <span className="small">
+            أضف في الوصف الموجز ما يهمك مثل شخصية العميل، الزاوية التسويقية، أو نبرة الصوت. تستخدم Promptify هذه
+            المعلومات لتشكيل المحتوى بشكل أوثق لإستراتيجيتك.
+          </span>
         </div>
-        {err && <p style={{color:"#fca5a5"}}>{err}</p>}
       </div>
     </div>
   );
