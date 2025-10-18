@@ -2,13 +2,49 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="grid" style={{marginTop: 24}}>
-      <div className="card">
-        <h1>Promptify – توليد صفحات هبوط (OpenAI افتراضياً)</h1>
-        <p className="small">أدخل رابط المنتج (وصف اختياري). سنحلّل الصفحة، ثم نولد صفحة هبوط عربية قابلة للتحرير.</p>
-        <div className="grid grid-2" style={{marginTop: 16}}>
-          <Link className="card" href="/generate"><b>إنشاء صفحة جديدة</b><div className="small">OpenAI ← Gemini fallback</div></Link>
-          <Link className="card" href="/dashboard"><b>لوحة التحكم</b><div className="small">إدارة الصفحات</div></Link>
+    <div className="grid" style={{ marginTop: 24 }}>
+      <div className="card home-hero-card">
+        <div className="badge-row">
+          <span className="badge">⚡ توليد فوري</span>
+          <span className="badge">🤖 مدعوم بالذكاء الاصطناعي</span>
+        </div>
+        <h1 className="hero-title">Promptify – صفحات هبوط عربية متكاملة خلال دقائق</h1>
+        <p className="hero-subtitle">
+          اجمع كل ما تحتاجه للتسويق: نصوص جذابة، مزايا مقنعة، وأقسام جاهزة للطلب بالدفع عند الاستلام.
+          كل ذلك مصمم خصيصاً للّغة العربية ولهجاتها، مع محرّر سهل يتيح لك تخصيص التفاصيل الدقيقة.
+        </p>
+        <div className="hero-actions">
+          <Link className="btn primary" href="/generate">ابدأ توليد صفحة جديدة</Link>
+          <Link className="btn ghost" href="/dashboard">تصفح الصفحات المحفوظة</Link>
+        </div>
+        <div className="info-banner" style={{ marginTop: 28 }}>
+          <strong>كيف يعمل؟</strong>
+          <span className="small">
+            ألصق رابط المنتج من AliExpress أو مصدر مشابه، اختر اللهجة ومزوّد الذكاء الاصطناعي. سنتكفل بجلب البيانات،
+            وتوليد صفحة كاملة، ثم يمكنك تعديلها ومشاركتها فوراً.
+          </span>
+        </div>
+      </div>
+
+      <div className="card subtle-card">
+        <h2 style={{ marginTop: 0 }}>لماذا سيحب فريقك Promptify؟</h2>
+        <div className="feature-grid">
+          <div className="feature-card">
+            <h3>تجربة عربية مهيأة</h3>
+            <p>واجهة مصممة RTL بالكامل مع دعم للهجات متعددة، كي لا تضطر لإعادة صياغة النصوص يدوياً.</p>
+          </div>
+          <div className="feature-card">
+            <h3>تحكم كامل في المحتوى</h3>
+            <p>عدّل كل قسم في المحرّر، أضف المزايا أو الأسئلة الشائعة، واحفظ نسخاً مختلفة لفرق التسويق.</p>
+          </div>
+          <div className="feature-card">
+            <h3>معاينة فورية</h3>
+            <p>معاينة أنيقة لصفحتك كما ستظهر للعميل، مع نموذج طلب جاهز للدفع عند الاستلام.</p>
+          </div>
+          <div className="feature-card">
+            <h3>أداء موثوق</h3>
+            <p>نظام ذكي للتبديل بين OpenAI وGemini يضمن الحصول على أفضل نتيجة بدون انقطاع.</p>
+          </div>
         </div>
       </div>
     </div>
