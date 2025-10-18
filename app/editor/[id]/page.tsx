@@ -71,7 +71,10 @@ export default function Editor() {
 
   const addImageFromUrl = () => {
     if (!imageUrlInput.trim()) return;
-    const list = [...productImages, { url: imageUrlInput.trim(), alt: imageAltInput.trim() || (hero?.headline || product?.name || "صورة المنتج") }];
+    const list = [
+      ...productImages,
+      { url: imageUrlInput.trim(), alt: imageAltInput.trim() || hero?.headline || product?.name || "صورة المنتج" },
+    ];
     setProduct({ images: list });
     setImageUrlInput("");
     setImageAltInput("");
@@ -258,9 +261,15 @@ export default function Editor() {
         </section>
 
         <div className="editor-actions">
-          <button className="primary" onClick={save} disabled={busy}>{busy ? "جاري الحفظ…" : "حفظ"}</button>
-          <button onClick={() => router.push(`/preview/${id}`)}>معاينة</button>
-          <button onClick={() => router.push(`/dashboard`)}>رجوع</button>
+          <button className="btn primary" onClick={save} disabled={busy}>
+            {busy ? "جاري الحفظ…" : "حفظ"}
+          </button>
+          <button className="btn ghost" onClick={() => router.push(`/preview/${id}`)}>
+            معاينة
+          </button>
+          <button className="btn ghost" onClick={() => router.push(`/dashboard`)}>
+            رجوع
+          </button>
         </div>
         {saved && <div className="alert-success">تم الحفظ ✓</div>}
         {err && <div className="alert-error">{err}</div>}

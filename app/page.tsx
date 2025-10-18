@@ -7,15 +7,34 @@ export default function Home() {
         <div className="badge-row">
           <span className="badge">⚡ توليد فوري</span>
           <span className="badge">🤖 مدعوم بالذكاء الاصطناعي</span>
+          <span className="badge">🎨 تصميم متوافق مع الهوية</span>
         </div>
         <h1 className="hero-title">Promptify – صفحات هبوط عربية متكاملة خلال دقائق</h1>
         <p className="hero-subtitle">
-          اجمع كل ما تحتاجه للتسويق: نصوص جذابة، مزايا مقنعة، وأقسام جاهزة للطلب بالدفع عند الاستلام.
-          كل ذلك مصمم خصيصاً للّغة العربية ولهجاتها، مع محرّر سهل يتيح لك تخصيص التفاصيل الدقيقة.
+          اجمع كل ما تحتاجه للتسويق: نصوص جذابة، مزايا مقنعة، وأقسام جاهزة للطلب بالدفع عند الاستلام. كل ذلك مصمم
+          خصيصاً للّغة العربية ولهجاتها، مع محرّر متطور يعكس هوية علامتك التجارية في ثيمات داكنة ومضيئة أنيقة.
         </p>
         <div className="hero-actions">
-          <Link className="btn primary" href="/generate">ابدأ توليد صفحة جديدة</Link>
-          <Link className="btn ghost" href="/dashboard">تصفح الصفحات المحفوظة</Link>
+          <Link className="btn primary" href="/generate">
+            ابدأ توليد صفحة جديدة
+          </Link>
+          <Link className="btn ghost" href="/dashboard">
+            تصفح الصفحات المحفوظة
+          </Link>
+        </div>
+        <div className="hero-metrics">
+          <div className="hero-metric">
+            <span className="hero-metric__value">+120</span>
+            <span className="hero-metric__label">صفحات منجزة أسبوعياً بفضل الأتمتة</span>
+          </div>
+          <div className="hero-metric">
+            <span className="hero-metric__value">5 دقائق</span>
+            <span className="hero-metric__label">متوسط الوقت من الرابط إلى المعاينة الجاهزة</span>
+          </div>
+          <div className="hero-metric">
+            <span className="hero-metric__value">98٪</span>
+            <span className="hero-metric__label">تناسق في الهوية البصرية بين الوضعين الداكن والفاتح</span>
+          </div>
         </div>
         <div className="info-banner" style={{ marginTop: 28 }}>
           <strong>كيف يعمل؟</strong>
@@ -39,7 +58,7 @@ export default function Home() {
           </div>
           <div className="feature-card">
             <h3>معاينة فورية</h3>
-            <p>معاينة أنيقة لصفحتك كما ستظهر للعميل، مع نموذج طلب جاهز للدفع عند الاستلام.</p>
+            <p>معاينة أنيقة لصفحتك كما ستظهر للعميل، مع نموذج طلب متجاوب جاهز للدفع عند الاستلام.</p>
           </div>
           <div className="feature-card">
             <h3>أداء موثوق</h3>
