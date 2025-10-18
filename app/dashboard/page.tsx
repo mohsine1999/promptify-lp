@@ -4,7 +4,28 @@ import Link from "next/link";
 
 export default function Dashboard() {
   const [pages, setPages] = useState<any[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   useEffect(() => { fetch("/api/pages").then(r => r.json()).then(d => setPages(d.pages || [])); }, []);
+
+  const deletePage = async (id: string) => {
+    if (deletingId === id) return;
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm("هل أنت متأكد من حذف هذه الصفحة؟");
+      if (!confirmed) return;
+    }
+    try {
+      setDeletingId(id);
+      const res = await fetch(`/api/pages/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("DELETE_FAILED");
+      setPages(prev => prev.filter(p => p.id !== id));
+    } catch (error) {
+      if (typeof window !== "undefined") {
+        window.alert("تعذر حذف الصفحة، يرجى المحاولة لاحقاً.");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
   return (
     <div className="grid">
       <div className="card">
@@ -28,33 +49,53 @@ export default function Dashboard() {
           <>
             <div className="info-banner" style={{ marginTop: 24 }}>
               <strong>عدد الصفحات المحفوظة: {pages.length}</strong>
-              <span className="small">انقر على أي صفحة للتعديل أو المعاينة. يمكنك أيضاً حذفها من داخل المحرّر.</span>
+              <span className="small">انقر على أي بطاقة للتعديل أو المعاينة أو استخدم زر الحذف لإزالتها فوراً.</span>
             </div>
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>الاسم</th>
-                    <th>المعرف</th>
-                    <th>الحالة</th>
-                    <th>تعديل</th>
-                    <th>معاينة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pages.map((p: any) => (
-                    <tr key={p.id}>
-                      <td>{p.doc?.product?.name || p.slug}</td>
-                      <td className="small">{p.id}</td>
-                      <td>
-                        <span className="status-pill">{p.status}</span>
-                      </td>
-                      <td><Link href={`/editor/${p.id}`}>تعديل</Link></td>
-                      <td><Link href={`/preview/${p.id}`}>معاينة</Link></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="lp-grid" role="list">
+              {pages.map((p: any) => (
+                <article key={p.id} className="lp-card" role="listitem">
+                  <header className="lp-card__header">
+                    <div>
+                      <h3>{p.doc?.product?.name || p.slug}</h3>
+                      <p className="small muted" style={{ margin: 0 }}>{p.id}</p>
+                    </div>
+                    <span className="status-pill">{p.status}</span>
+                  </header>
+                  {p.doc?.product?.description ? (
+                    <p className="small" style={{ marginTop: 12 }}>{p.doc.product.description}</p>
+                  ) : null}
+                  <dl className="lp-card__meta">
+                    {p.doc?.product?.price ? (
+                      <div>
+                        <dt>السعر</dt>
+                        <dd>{p.doc.product.price}</dd>
+                      </div>
+                    ) : null}
+                    {p.doc?.hero?.ctaText ? (
+                      <div>
+                        <dt>الدعوة للإجراء</dt>
+                        <dd>{p.doc.hero.ctaText}</dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt>أُنشئت في</dt>
+                      <dd>{p.createdAt ? new Date(p.createdAt).toLocaleString("ar-MA") : "غير معروف"}</dd>
+                    </div>
+                  </dl>
+                  <div className="lp-card__actions">
+                    <Link className="btn primary" href={`/editor/${p.id}`}>تعديل</Link>
+                    <Link className="btn ghost" href={`/preview/${p.id}`}>معاينة</Link>
+                    <button
+                      type="button"
+                      className="btn danger"
+                      onClick={() => deletePage(p.id)}
+                      disabled={deletingId === p.id}
+                    >
+                      {deletingId === p.id ? "جار الحذف…" : "حذف"}
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           </>
         )}

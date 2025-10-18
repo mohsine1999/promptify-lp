@@ -67,13 +67,13 @@ export default function Preview({ params }: { params: { id: string }}) {
         ) : null}
         <section id="checkout">
           <h3>طلب بالدفع عند الاستلام</h3>
-          <form onSubmit={(e)=>e.preventDefault()}>
-            <div>
-              <input placeholder="الاسم الكامل" />
-              <input placeholder="المدينة" />
-              <input placeholder="رقم الهاتف" />
-              <button className="cta" type="submit">{doc?.checkout?.ctaText || "تأكيد الطلب"}</button>
+          <form className="checkout-form" onSubmit={(e)=>e.preventDefault()}>
+            <div className="checkout-grid">
+              <input placeholder="الاسم الكامل" name="fullName" autoComplete="name" />
+              <input placeholder="المدينة" name="city" autoComplete="address-level2" />
+              <input placeholder="رقم الهاتف" name="phone" type="tel" autoComplete="tel" />
             </div>
+            <button className="cta checkout-submit" type="submit">{doc?.checkout?.ctaText || "تأكيد الطلب"}</button>
           </form>
         </section>
       </div>
