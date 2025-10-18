@@ -4,29 +4,100 @@ import Link from "next/link";
 
 export default function Dashboard() {
   const [pages, setPages] = useState<any[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   useEffect(() => { fetch("/api/pages").then(r => r.json()).then(d => setPages(d.pages || [])); }, []);
+
+  const deletePage = async (id: string) => {
+    if (deletingId === id) return;
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm("هل أنت متأكد من حذف هذه الصفحة؟");
+      if (!confirmed) return;
+    }
+    try {
+      setDeletingId(id);
+      const res = await fetch(`/api/pages/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("DELETE_FAILED");
+      setPages(prev => prev.filter(p => p.id !== id));
+    } catch (error) {
+      if (typeof window !== "undefined") {
+        window.alert("تعذر حذف الصفحة، يرجى المحاولة لاحقاً.");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
   return (
     <div className="grid">
       <div className="card">
-        <h1>صفحاتي</h1>
-        <div className="sep" />
+        <div className="editor-section__header" style={{ marginBottom: 8 }}>
+          <div>
+            <h1 style={{ margin: 0 }}>لوحة الصفحات</h1>
+            <p className="muted" style={{ margin: 6, marginInlineStart: 0 }}>
+              راقب الصفحات المتولدة، عدّلها، أو شاركها مع فريقك. يتم حفظ كل نسخة بتاريخها وحالتها الحالية.
+            </p>
+          </div>
+          <Link className="btn primary" href="/generate">+ إنشاء صفحة</Link>
+        </div>
+
         {pages.length === 0 ? (
-          <p>لا توجد صفحات بعد. <Link href="/generate">ابدأ من هنا</Link></p>
+          <div className="info-banner" style={{ marginTop: 24 }}>
+            <strong>لم تنشئ أي صفحة بعد</strong>
+            <span className="small">ابدأ من خلال توليد صفحة جديدة، وسنضيفها هنا تلقائياً مع تفاصيلها.</span>
+            <Link className="btn primary" href="/generate" style={{ alignSelf: "flex-start", marginTop: 12 }}>بدء التوليد</Link>
+          </div>
         ) : (
-          <table>
-            <thead><tr><th>الاسم</th><th>المعرف</th><th>الحالة</th><th>تعديل</th><th>معاينة</th></tr></thead>
-            <tbody>
+          <>
+            <div className="info-banner" style={{ marginTop: 24 }}>
+              <strong>عدد الصفحات المحفوظة: {pages.length}</strong>
+              <span className="small">انقر على أي بطاقة للتعديل أو المعاينة أو استخدم زر الحذف لإزالتها فوراً.</span>
+            </div>
+            <div className="lp-grid" role="list">
               {pages.map((p: any) => (
-                <tr key={p.id}>
-                  <td>{p.doc?.product?.name || p.slug}</td>
-                  <td className="small">{p.id}</td>
-                  <td>{p.status}</td>
-                  <td><Link href={`/editor/${p.id}`}>تعديل</Link></td>
-                  <td><Link href={`/preview/${p.id}`}>معاينة</Link></td>
-                </tr>
+                <article key={p.id} className="lp-card" role="listitem">
+                  <header className="lp-card__header">
+                    <div>
+                      <h3>{p.doc?.product?.name || p.slug}</h3>
+                      <p className="small muted" style={{ margin: 0 }}>{p.id}</p>
+                    </div>
+                    <span className="status-pill">{p.status}</span>
+                  </header>
+                  {p.doc?.product?.description ? (
+                    <p className="small" style={{ marginTop: 12 }}>{p.doc.product.description}</p>
+                  ) : null}
+                  <dl className="lp-card__meta">
+                    {p.doc?.product?.price ? (
+                      <div>
+                        <dt>السعر</dt>
+                        <dd>{p.doc.product.price}</dd>
+                      </div>
+                    ) : null}
+                    {p.doc?.hero?.ctaText ? (
+                      <div>
+                        <dt>الدعوة للإجراء</dt>
+                        <dd>{p.doc.hero.ctaText}</dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt>أُنشئت في</dt>
+                      <dd>{p.createdAt ? new Date(p.createdAt).toLocaleString("ar-MA") : "غير معروف"}</dd>
+                    </div>
+                  </dl>
+                  <div className="lp-card__actions">
+                    <Link className="btn primary" href={`/editor/${p.id}`}>تعديل</Link>
+                    <Link className="btn ghost" href={`/preview/${p.id}`}>معاينة</Link>
+                    <button
+                      type="button"
+                      className="btn danger"
+                      onClick={() => deletePage(p.id)}
+                      disabled={deletingId === p.id}
+                    >
+                      {deletingId === p.id ? "جار الحذف…" : "حذف"}
+                    </button>
+                  </div>
+                </article>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
     </div>
