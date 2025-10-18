@@ -30,14 +30,14 @@ export default function Editor() {
     } catch (e:any) { setErr(e.message); } finally { setBusy(false); }
   }
 
-  if (!doc) return <div className="card subtle-card"><p>{err || "جاري التحميل…"}</p></div>;
+  const hero = doc?.hero || {};
+  const features = doc?.features || [];
+  const faq = doc?.faq || [];
+  const checkout = doc?.checkout || {};
+  const product = doc?.product || {};
+  const productImages = (product.images || []).filter((img:any)=>img && img.url);
 
-  const hero = doc.hero || {};
-  const features = doc.features || [];
-  const faq = doc.faq || [];
-  const checkout = doc.checkout || {};
-  const product = doc.product || {};
-  const productImages = useMemo(()=> (product.images || []).filter((img:any)=>img && img.url), [product]);
+  if (!doc) return <div className="card subtle-card"><p>{err || "جاري التحميل…"}</p></div>;
 
   const setHero = (u:any)=> setDoc({...doc, hero:{...hero, ...u}});
   const addFeature = ()=> setDoc({...doc, features:[...features, { title:"ميزة", description:"وصف مختصر" }]});
