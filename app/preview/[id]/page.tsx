@@ -5,17 +5,40 @@ export default function Preview({ params }: { params: { id: string }}) {
   const [doc, setDoc] = useState<any>(null);
   useEffect(()=>{ fetch(`/api/pages/${params.id}`).then(r=>r.json()).then(d=>setDoc(d.doc)); }, [params.id]);
   if (!doc) return <div className="card subtle-card"><p>جاري التحميل…</p></div>;
+  const heroImage = doc?.hero?.heroImage;
+  const gallery = (doc?.product?.images || []).filter((img:any)=>img?.url && img.url !== heroImage?.url);
   return (
     <div className="preview-wrapper" style={{ marginTop: 16 }}>
       <div dir="rtl" className="preview">
-        <div className="hero">
-          <h1>{doc?.hero?.headline}</h1>
-          {doc?.hero?.subheadline && <p>{doc.hero.subheadline}</p>}
-          {doc?.hero?.bulletPoints?.length ? (
-            <ul>{doc.hero.bulletPoints.map((b:string, i:number)=><li key={i}>{b}</li>)}</ul>
+        <div className={`hero${heroImage?.url ? " with-image" : ""}`}>
+          <div className="hero-copy">
+            <h1>{doc?.hero?.headline}</h1>
+            {doc?.hero?.subheadline && <p>{doc.hero.subheadline}</p>}
+            {doc?.hero?.bulletPoints?.length ? (
+              <ul>{doc.hero.bulletPoints.map((b:string, i:number)=><li key={i}>{b}</li>)}</ul>
+            ) : null}
+            <a className="cta" href="#checkout">{doc?.hero?.ctaText || "اطلب الآن"}</a>
+          </div>
+          {heroImage?.url ? (
+            <figure className="hero-media">
+              <img src={heroImage.url} alt={heroImage.alt || "صورة المنتج"} />
+              {heroImage.alt && <figcaption>{heroImage.alt}</figcaption>}
+            </figure>
           ) : null}
-          <a className="cta" href="#checkout">{doc?.hero?.ctaText || "اطلب الآن"}</a>
         </div>
+        {gallery.length ? (
+          <section className="preview-gallery">
+            <h3>معرض الصور</h3>
+            <div className="preview-gallery__grid">
+              {gallery.map((img:any, i:number) => (
+                <figure key={i}>
+                  <img src={img.url} alt={img.alt || `صورة ${i+1}`} />
+                  {img.alt && <figcaption>{img.alt}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </section>
+        ) : null}
         {doc?.features?.length ? (
           <section className="features">
             <h3>المزايا</h3>

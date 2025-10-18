@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
 export default function Editor() {
@@ -9,6 +9,8 @@ export default function Editor() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string|null>(null);
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [imageAltInput, setImageAltInput] = useState("");
 
   useEffect(()=>{
     fetch(`/api/pages/${id}`).then(r=>r.json()).then(d=>setDoc(d.doc)).catch(()=>setErr("تعذّر التحميل"));
@@ -34,6 +36,8 @@ export default function Editor() {
   const features = doc.features || [];
   const faq = doc.faq || [];
   const checkout = doc.checkout || {};
+  const product = doc.product || {};
+  const productImages = useMemo(()=> (product.images || []).filter((img:any)=>img && img.url), [product]);
 
   const setHero = (u:any)=> setDoc({...doc, hero:{...hero, ...u}});
   const addFeature = ()=> setDoc({...doc, features:[...features, { title:"ميزة", description:"وصف مختصر" }]});
@@ -42,6 +46,50 @@ export default function Editor() {
   const addFaq = ()=> setDoc({...doc, faq:[...faq, { q:"سؤال شائع؟", a:"إجابة مختصرة." }]});
   const updFaq = (i:number,u:any)=>{ const a=[...faq]; a[i]={...a[i],...u}; setDoc({...doc, faq:a}); };
   const delFaq = (i:number)=> setDoc({...doc, faq: faq.filter((_x:any,j:number)=>j!==i)});
+  const setProduct = (u:any)=> setDoc({ ...doc, product: { ...(product || {}), ...u } });
+
+  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  const handleUpload = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const existing = productImages.slice();
+    for (const file of Array.from(files)) {
+      try {
+        const dataUrl = await fileToDataUrl(file);
+        existing.push({ url: dataUrl, alt: file.name.replace(/\.[^.]+$/, "") });
+      } catch (error) {
+        console.error("image upload failed", error);
+      }
+    }
+    setProduct({ images: existing });
+  };
+
+  const addImageFromUrl = () => {
+    if (!imageUrlInput.trim()) return;
+    const list = [...productImages, { url: imageUrlInput.trim(), alt: imageAltInput.trim() || (hero?.headline || product?.name || "صورة المنتج") }];
+    setProduct({ images: list });
+    setImageUrlInput("");
+    setImageAltInput("");
+  };
+
+  const removeImage = (index: number) => {
+    const list = productImages.filter((_img:any, i:number)=> i !== index);
+    setProduct({ images: list });
+    if (hero?.heroImage?.url && productImages[index]?.url === hero.heroImage.url) {
+      setHero({ heroImage: undefined });
+    }
+  };
+
+  const setHeroImageFromProduct = (index: number) => {
+    const target = productImages[index];
+    if (!target) return;
+    setHero({ heroImage: target });
+  };
 
   return (
     <div className="grid">
@@ -77,6 +125,91 @@ export default function Editor() {
           />
           <label>نص زر الدعوة</label>
           <input value={hero.ctaText || ""} onChange={e => setHero({ ctaText: e.target.value })} />
+          <div className="editor-hero-image">
+            <div className="editor-section__header" style={{ marginTop: 16 }}>
+              <h4 style={{ margin: 0 }}>الصورة الرئيسية</h4>
+              {hero?.heroImage?.url ? (
+                <button type="button" className="btn ghost" onClick={() => setHero({ heroImage: undefined })}>إزالة</button>
+              ) : null}
+            </div>
+            {hero?.heroImage?.url ? (
+              <div className="editor-hero-image__preview">
+                <img src={hero.heroImage.url} alt={hero.heroImage.alt || ""} />
+                <input
+                  placeholder="نص بديل للصورة"
+                  value={hero.heroImage.alt || ""}
+                  onChange={e => setHero({ heroImage: { ...hero.heroImage, alt: e.target.value } })}
+                />
+              </div>
+            ) : (
+              <p className="small">اختر إحدى صور المنتج أدناه واجعلها صورة البطل لإبراز المنتج من أول لحظة.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="editor-section">
+          <div className="editor-section__header">
+            <h3 style={{ margin: 0 }}>صور المنتج</h3>
+            <label className="btn ghost file-upload">
+              رفع صور
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={async e => {
+                  await handleUpload(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+          <p className="small">
+            ارفع أفضل صور المنتج أو ألصق روابط مباشرة. اختر صورة أساسية لعرضها في القسم الرئيسي، واحتفظ بباقي الصور كمعرض يقنع الزائر بسرعة.
+          </p>
+          <div className="editor-image-url">
+            <input
+              placeholder="https://example.com/product.jpg"
+              value={imageUrlInput}
+              onChange={e => setImageUrlInput(e.target.value)}
+            />
+            <input
+              placeholder="وصف مختصر للصورة"
+              value={imageAltInput}
+              onChange={e => setImageAltInput(e.target.value)}
+            />
+            <button type="button" className="btn ghost" onClick={addImageFromUrl}>إضافة</button>
+          </div>
+          {productImages.length ? (
+            <div className="editor-image-grid">
+              {productImages.map((img:any, i:number) => (
+                <div key={i} className={`editor-image-card${hero?.heroImage?.url === img.url ? " hero" : ""}`}>
+                  <img src={img.url} alt={img.alt || ""} />
+                  <input
+                    placeholder="نص بديل للصورة"
+                    value={img.alt || ""}
+                    onChange={e => {
+                      const list = productImages.slice();
+                      list[i] = { ...list[i], alt: e.target.value };
+                      setProduct({ images: list });
+                      if (hero?.heroImage?.url === img.url) {
+                        setHero({ heroImage: { ...hero.heroImage, alt: e.target.value } });
+                      }
+                    }}
+                  />
+                  <div className="editor-image-card__actions">
+                    <button type="button" className="btn ghost" onClick={() => setHeroImageFromProduct(i)}>
+                      تعيين كصورة البطل
+                    </button>
+                    <button type="button" className="btn ghost" onClick={() => removeImage(i)}>
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="small">لم يتم إضافة صور بعد.</p>
+          )}
         </section>
 
         <section className="editor-section">
