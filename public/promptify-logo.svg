@@ -1,0 +1,9 @@
+<svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="16" width="88" height="88" rx="22" fill="#1DB05E"/>
+  <rect x="28" y="32" width="48" height="56" rx="10" fill="white"/>
+  <path d="M64 38H52a4 4 0 00-4 4v8h12l-8 20h10l-2 16 14-28h-12l8-20z" fill="#0E9F6E"/>
+  <path d="M44 80h16v8H44c-6.627 0-12-5.373-12-12V52c0-6.627 5.373-12 12-12h4v8h-4c-2.209 0-4 1.791-4 4v24c0 2.209 1.791 4 4 4z" fill="#0E9F6E"/>
+  <g fill="#0B1221" font-family="'Cairo', 'Segoe UI', sans-serif" font-weight="700">
+    <text font-size="44" x="120" y="72">Promptify</text>
+  </g>
+</svg>
