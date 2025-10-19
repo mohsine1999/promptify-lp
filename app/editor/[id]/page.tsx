@@ -1,19 +1,34 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { buildDeploymentUrl } from "@/lib/config/deployment";
 
 export default function Editor() {
   const { id } = useParams<{id:string}>();
   const router = useRouter();
+  const [page, setPage] = useState<any>(null);
   const [doc, setDoc] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string|null>(null);
+  const [deploying, setDeploying] = useState(false);
+  const [deployFlash, setDeployFlash] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [imageAltInput, setImageAltInput] = useState("");
 
-  useEffect(()=>{
-    fetch(`/api/pages/${id}`).then(r=>r.json()).then(d=>setDoc(d.doc)).catch(()=>setErr("تعذّر التحميل"));
+  useEffect(() => {
+    setErr(null);
+    fetch(`/api/pages/${id}`)
+      .then(r => {
+        if (!r.ok) throw new Error("LOAD_FAILED");
+        return r.json();
+      })
+      .then(d => {
+        setDoc(d.doc);
+        setPage(d);
+        setDeployFlash(false);
+      })
+      .catch(() => setErr("تعذّر التحميل"));
   }, [id]);
 
   async function save() {
@@ -26,8 +41,29 @@ export default function Editor() {
       });
       const d = await res.json();
       if (!d.ok) throw new Error(d.error || "فشل الحفظ");
+      setDoc(d.doc);
+      setPage(d);
       setSaved(true); setTimeout(()=>setSaved(false), 1500);
     } catch (e:any) { setErr(e.message); } finally { setBusy(false); }
+  }
+
+  async function deploy() {
+    if (!doc || deploying) return;
+    setDeploying(true); setErr(null);
+    try {
+      const res = await fetch(`/api/pages/${id}/deploy`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل النشر");
+      const nextPage = data.page || data;
+      if (nextPage?.doc) setDoc(nextPage.doc);
+      setPage(nextPage);
+      setDeployFlash(true);
+      setTimeout(() => setDeployFlash(false), 2000);
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setDeploying(false);
+    }
   }
 
   const hero = doc?.hero || {};
@@ -36,6 +72,9 @@ export default function Editor() {
   const checkout = doc?.checkout || {};
   const product = doc?.product || {};
   const productImages = (product.images || []).filter((img:any)=>img && img.url);
+  const isPublished = page?.status === "published";
+  const deploymentUrl = page?.slug ? buildDeploymentUrl(page.slug) : null;
+  const publishedAt = page?.publishedAt ? new Date(page.publishedAt).toLocaleString("ar-MA") : null;
 
   if (!doc) return <div className="card subtle-card"><p>{err || "جاري التحميل…"}</p></div>;
 
@@ -104,13 +143,31 @@ export default function Editor() {
               عدّل كل جزء من صفحة الهبوط، أضف أقساماً جديدة، وتابع حفظ التغييرات باستمرار قبل مشاركتها مع الفريق.
             </p>
           </div>
-          <span className="status-pill">معرف الصفحة: {id}</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+            <span className="status-pill">{isPublished ? "منشورة" : "مسودة"}</span>
+            <span className="small muted" style={{ margin: 0 }}>معرف الصفحة: {id}</span>
+            {isPublished && publishedAt ? (
+              <span className="small muted" style={{ margin: 0 }}>نُشرت في {publishedAt}</span>
+            ) : null}
+          </div>
         </div>
 
         <div className="info-banner" style={{ marginTop: 18 }}>
           <strong>{doc?.docTitle || doc?.hero?.headline || "صفحة بدون عنوان"}</strong>
           <span className="small">احرص على أن تعكس أقسام الصفحة وعد المنتج وقيمته بلغة واضحة وجذابة.</span>
         </div>
+
+        {isPublished && deploymentUrl ? (
+          <div className="info-banner" style={{ marginTop: 16 }}>
+            <strong>الصفحة منشورة على نطاق فرعي</strong>
+            <span className="small">
+              شارك الرابط المباشر مع جمهورك:
+              <a href={deploymentUrl} target="_blank" rel="noopener noreferrer" style={{ marginInlineStart: 8 }}>
+                {deploymentUrl}
+              </a>
+            </span>
+          </div>
+        ) : null}
 
         <section className="editor-section" style={{ marginTop: 32 }}>
           <div className="editor-section__header">
@@ -264,6 +321,9 @@ export default function Editor() {
           <button className="btn primary" onClick={save} disabled={busy}>
             {busy ? "جاري الحفظ…" : "حفظ"}
           </button>
+          <button className="btn success" onClick={deploy} disabled={deploying || busy}>
+            {deploying ? "جاري النشر…" : isPublished ? "تحديث النشر" : "نشر على النطاق الفرعي"}
+          </button>
           <button className="btn ghost" onClick={() => router.push(`/preview/${id}`)}>
             معاينة
           </button>
@@ -272,6 +332,7 @@ export default function Editor() {
           </button>
         </div>
         {saved && <div className="alert-success">تم الحفظ ✓</div>}
+        {deployFlash && <div className="alert-success">تم النشر على النطاق الفرعي ✓</div>}
         {err && <div className="alert-error">{err}</div>}
       </div>
     </div>
