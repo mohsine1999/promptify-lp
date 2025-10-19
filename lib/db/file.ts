@@ -14,11 +14,20 @@ export type StoredPage = {
   updatedAt: string;
 };
 
-const DATA_DIR = path.join(process.cwd(), ".data");
+const TMP_DIR = path.join("/tmp", "promptify-lp-data");
+
+function resolveDataDir() {
+  const configured = process.env.DATA_DIR?.trim();
+  if (configured) return configured;
+  if (process.env.VERCEL === "1" || process.env.VERCEL === "true") return TMP_DIR;
+  return path.join(process.cwd(), ".data");
+}
+
+const DATA_DIR = resolveDataDir();
 const FILE = path.join(DATA_DIR, "pages.json");
 
 function ensure() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify([]), "utf-8");
 }
 
