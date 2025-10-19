@@ -144,21 +144,22 @@ function resolveFromJsonLd(blocks: any[], pageItemId: string | null) {
 }
 
 export async function resolveProduct(url: string): Promise<ResolvedProduct> {
-  const pageItemId = getItemIdFromUrl(url);
+  const normalizedUrl = url.trim();
+  const pageItemId = getItemIdFromUrl(normalizedUrl);
   let html: string;
   try {
-    html = await fetchHtml(url);
+    html = await fetchHtml(normalizedUrl);
   } catch {
-    return { status: "URL_UNREADABLE", url, pageItemId, productId: null, title: null, ogTitle: null };
+    return { status: "URL_UNREADABLE", url: normalizedUrl, pageItemId, productId: null, title: null, ogTitle: null };
   }
 
   const og = extractOg(html);
   const ogTitle = og?.title || og?.["title"] || null;
   const { runParams, jsonLd } = pickJsonBlocks(html);
 
-  const rp = resolveFromRunParams(runParams, pageItemId, url);
+  const rp = resolveFromRunParams(runParams, pageItemId, normalizedUrl);
   if (rp?.productId || rp?.title) {
-    return { status: "OK", url, pageItemId, ogTitle, rawOg: og,
+    return { status: "OK", url: normalizedUrl, pageItemId, ogTitle, rawOg: og,
       productId: rp.productId, title: rp.title, storeName: rp.storeName,
       selectedSkuId: rp.selectedSkuId, variantSummary: rp.variantSummary,
       price: rp.price, images: rp.images };
@@ -166,14 +167,14 @@ export async function resolveProduct(url: string): Promise<ResolvedProduct> {
 
   const ld = resolveFromJsonLd(jsonLd, pageItemId);
   if (ld?.productId || ld?.title) {
-    return { status: "OK", url, pageItemId, ogTitle, rawOg: og,
+    return { status: "OK", url: normalizedUrl, pageItemId, ogTitle, rawOg: og,
       productId: ld.productId, title: ld.title, price: ld.price, images: ld.images };
   }
 
   if (ogTitle) {
-    return { status: "OK", url, pageItemId, ogTitle, rawOg: og,
+    return { status: "OK", url: normalizedUrl, pageItemId, ogTitle, rawOg: og,
       productId: pageItemId, title: ogTitle, price: og?.price || null, images: og?.image ? [{url: og.image}] : [] };
   }
 
-  return { status: "NOT_FOUND", url, pageItemId, ogTitle: null, productId: null, title: null };
+  return { status: "NOT_FOUND", url: normalizedUrl, pageItemId, ogTitle: null, productId: null, title: null };
 }
