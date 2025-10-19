@@ -281,6 +281,7 @@ export async function generateWithGemini(params: GenerateParams): Promise<LPDocu
 });
 
   let doc: Partial<LPDocument> = {};
-  try { doc = JSON.parse(res.text); } catch {}
+  const raw = res.text ?? "{}";       // <= default when undefined
+  try { doc = JSON.parse(raw); } catch {}
   return ensureComplete(doc as LPDocument, params.resolved, dialect, params.brief);
 }
