@@ -4,6 +4,7 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 
 import { resolveProduct } from "@/lib/resolve/product";
+import { fallbackResolvedProduct } from "@/lib/resolve/fallback";
 import { generateWithOpenAI, generateWithGemini } from "@/lib/ai/providers";
 import type { LPDocument } from "@/lib/schema/page";
 import { db } from "@/lib/db/file";
@@ -39,12 +40,19 @@ export async function POST(req: NextRequest) {
     }
     const { productUrl, brief, dialect, provider } = parsed.data;
 
-    const resolved = await resolveProduct(productUrl).catch((error: unknown) => {
+    let resolved = await resolveProduct(productUrl).catch((error: unknown) => {
       console.error("resolveProduct failed:", error);
-      return { status: "ERR" } as const;
+      return null;
     });
 
-    if (resolved.status !== "OK" || !resolved.title) {
+    if (!resolved || resolved.status !== "OK" || !resolved.title) {
+      const fallback = fallbackResolvedProduct(productUrl, resolved ?? undefined);
+      if (fallback) {
+        resolved = fallback;
+      }
+    }
+
+    if (!resolved || resolved.status !== "OK" || !resolved.title) {
       return NextResponse.json(
         { ok: false, error: "FAILED_TO_RESOLVE_MAIN_PRODUCT" },
         { status: 400 }
