@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { buildDeploymentUrl } from "@/lib/config/deployment";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function Dashboard() {
   const [pages, setPages] = useState<any[]>([]);
@@ -52,14 +53,16 @@ export default function Dashboard() {
               <span className="small">انقر على أي بطاقة للتعديل أو المعاينة أو استخدم زر الحذف لإزالتها فوراً.</span>
             </div>
             <div className="lp-grid" role="list">
-              {pages.map((p: any) => (
-                <article key={p.id} className="lp-card" role="listitem">
+              {pages.map((p: any) => {
+                const liveUrl = buildDeploymentUrl(p.slug);
+                return (
+                  <article key={p.id} className="lp-card" role="listitem">
                   <header className="lp-card__header">
                     <div>
                       <h3>{p.doc?.product?.name || p.slug}</h3>
                       <p className="small muted" style={{ margin: 0 }}>{p.id}</p>
                     </div>
-                    <span className="status-pill">{p.status}</span>
+                    <span className="status-pill">{p.status === "published" ? "منشورة" : "مسودة"}</span>
                   </header>
                   {p.doc?.product?.description ? (
                     <p className="small" style={{ marginTop: 12 }}>{p.doc.product.description}</p>
@@ -81,10 +84,34 @@ export default function Dashboard() {
                       <dt>أُنشئت في</dt>
                       <dd>{p.createdAt ? new Date(p.createdAt).toLocaleString("ar-MA") : "غير معروف"}</dd>
                     </div>
+                    {p.status === "published" ? (
+                      <div>
+                        <dt>الرابط المباشر</dt>
+                        <dd>
+                          <a
+                            href={liveUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {liveUrl}
+                          </a>
+                        </dd>
+                      </div>
+                    ) : null}
                   </dl>
                   <div className="lp-card__actions">
                     <Link className="btn primary" href={`/editor/${p.id}`}>تعديل</Link>
                     <Link className="btn ghost" href={`/preview/${p.id}`}>معاينة</Link>
+                    {p.status === "published" ? (
+                      <a
+                        className="btn ghost"
+                        href={liveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        فتح الرابط المنشور
+                      </a>
+                    ) : null}
                     <button
                       type="button"
                       className="btn danger"
@@ -94,8 +121,9 @@ export default function Dashboard() {
                       {deletingId === p.id ? "جار الحذف…" : "حذف"}
                     </button>
                   </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </>
         )}
