@@ -266,15 +266,19 @@ export async function generateWithGemini(params: GenerateParams): Promise<LPDocu
   };
 
   const res = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: [JSON.stringify(payload)],
-    systemInstruction: SYSTEM_TEXT,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: LP_RESPONSE_SCHEMA as any,
-      temperature: 0.3
-    }
-  });
+  model: GEMINI_MODEL,
+  contents: [
+    {
+      role: "user",
+      parts: [{ text: `${SYSTEM_TEXT}\n\n${JSON.stringify(payload)}` }],
+    },
+  ],
+  config: {
+    responseMimeType: "application/json",
+    responseSchema: LP_RESPONSE_SCHEMA as any,
+    temperature: 0.3,
+  },
+});
 
   let doc: Partial<LPDocument> = {};
   try { doc = JSON.parse(res.text); } catch {}
