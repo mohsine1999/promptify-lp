@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let id = randomUUID();
+    let id: string = randomUUID();
     try {
       const page = db.create({ doc });
       if (page?.id) id = page.id;
