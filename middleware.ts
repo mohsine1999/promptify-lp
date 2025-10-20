@@ -17,9 +17,15 @@ export function middleware(request: NextRequest) {
   if (host.endsWith(`.${DEPLOY_BASE_HOSTNAME}`)) {
     const subdomain = host.slice(0, -(DEPLOY_BASE_HOSTNAME.length + 1));
     if (subdomain) {
-      const rewriteUrl = request.nextUrl.clone();
-      rewriteUrl.pathname = `/_sites/${subdomain}${request.nextUrl.pathname}`;
-      return NextResponse.rewrite(rewriteUrl);
+      const redirectUrl = new URL(request.url);
+      redirectUrl.hostname = DEPLOY_BASE_HOSTNAME;
+      redirectUrl.port = "";
+      const suffix = request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname;
+      redirectUrl.pathname = `/landing-page/${subdomain}${suffix}`;
+      if (!redirectUrl.protocol) {
+        redirectUrl.protocol = "https:";
+      }
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
