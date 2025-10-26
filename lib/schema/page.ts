@@ -7,11 +7,28 @@ export const LPSectionImage = z.object({
 
 export const LPFAQ = z.object({ q: z.string(), a: z.string() });
 
+export const LPTypography = z.object({
+  color: z.string().optional(),
+  fontSize: z.string().optional(),
+  maxWidth: z.string().optional(),
+});
+
+export const LPVideo = z.object({
+  url: z.string().url(),
+  poster: z.string().url().optional(),
+  caption: z.string().optional(),
+  autoplay: z.boolean().optional(),
+  muted: z.boolean().optional(),
+  loop: z.boolean().optional(),
+});
+
 export const LPHero = z.object({
   headline: z.string(),
   subheadline: z.string().optional(),
   bulletPoints: z.array(z.string()).max(8).default([]),
   heroImage: LPSectionImage.optional(),
+  heroVideo: LPVideo.optional(),
+  typography: LPTypography.optional(),
   ctaText: z.string().default("اطلب الآن"),
 });
 

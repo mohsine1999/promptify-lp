@@ -557,6 +557,24 @@ textarea {
   background: rgba(248, 250, 255, 0.85);
 }
 
+.editor-checkboxes {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.editor-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.editor-checkboxes input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
 .editor-hero-image__preview {
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -750,14 +768,19 @@ textarea {
   }
 }
 
+.hero-copy {
+  color: var(--hero-copy-color, #f8fafc);
+  max-width: var(--hero-copy-width, 100%);
+}
+
 .hero-copy h1 {
   margin: 0;
-  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-size: var(--hero-headline-size, clamp(2rem, 3vw, 2.8rem));
 }
 
 .hero-copy p {
   margin-top: 12px;
-  color: rgba(148, 163, 184, 0.88);
+  color: var(--hero-copy-muted-color, rgba(148, 163, 184, 0.88));
 }
 
 .hero-copy ul {
@@ -765,12 +788,12 @@ textarea {
   padding-inline-start: 22px;
   display: grid;
   gap: 8px;
-  color: rgba(191, 219, 254, 0.88);
+  color: var(--hero-copy-accent-color, rgba(191, 219, 254, 0.88));
   font-weight: 600;
 }
 
 .hero-copy li::marker {
-  color: rgba(56, 189, 248, 0.75);
+  color: var(--hero-copy-marker-color, rgba(56, 189, 248, 0.75));
 }
 
 .hero-media {
@@ -786,6 +809,12 @@ textarea {
   width: 100%;
   border-radius: calc(var(--radius-md) - 8px);
   object-fit: cover;
+}
+
+.hero-media video {
+  width: 100%;
+  border-radius: calc(var(--radius-md) - 8px);
+  background: #000;
 }
 
 .hero-media figcaption {
