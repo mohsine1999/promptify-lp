@@ -67,6 +67,8 @@ export default function Editor() {
   }
 
   const hero = doc?.hero || {};
+  const heroTypography = hero?.typography || {};
+  const heroVideo = hero?.heroVideo || {};
   const features = doc?.features || [];
   const faq = doc?.faq || [];
   const checkout = doc?.checkout || {};
@@ -78,7 +80,27 @@ export default function Editor() {
 
   if (!doc) return <div className="card subtle-card"><p>{err || "جاري التحميل…"}</p></div>;
 
-  const setHero = (u:any)=> setDoc({...doc, hero:{...hero, ...u}});
+  const setHero = (u:any)=> {
+    const nextHero: any = { ...hero, ...u };
+    if (u && Object.prototype.hasOwnProperty.call(u, "heroImage") && u.heroImage === undefined) {
+      delete nextHero.heroImage;
+    }
+    if (u && Object.prototype.hasOwnProperty.call(u, "heroVideo")) {
+      if (!u.heroVideo) {
+        delete nextHero.heroVideo;
+      } else {
+        nextHero.heroVideo = u.heroVideo;
+      }
+    }
+    if (u && Object.prototype.hasOwnProperty.call(u, "typography")) {
+      if (!u.typography || !Object.keys(u.typography).length) {
+        delete nextHero.typography;
+      } else {
+        nextHero.typography = u.typography;
+      }
+    }
+    setDoc({ ...doc, hero: nextHero });
+  };
   const addFeature = ()=> setDoc({...doc, features:[...features, { title:"ميزة", description:"وصف مختصر" }]});
   const updFeature = (i:number,u:any)=>{ const a=[...features]; a[i]={...a[i],...u}; setDoc({...doc, features:a}); };
   const delFeature = (i:number)=> setDoc({...doc, features: features.filter((_x:any,j:number)=>j!==i)});
@@ -86,6 +108,46 @@ export default function Editor() {
   const updFaq = (i:number,u:any)=>{ const a=[...faq]; a[i]={...a[i],...u}; setDoc({...doc, faq:a}); };
   const delFaq = (i:number)=> setDoc({...doc, faq: faq.filter((_x:any,j:number)=>j!==i)});
   const setProduct = (u:any)=> setDoc({ ...doc, product: { ...(product || {}), ...u } });
+
+  const updateHeroTypography = (updates: Record<string, string>) => {
+    const current = hero.typography || {};
+    const next = { ...current, ...updates } as Record<string, string>;
+    const cleaned: Record<string, string> = {};
+    Object.entries(next).forEach(([key, value]) => {
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (trimmed) cleaned[key] = trimmed;
+      }
+    });
+    setHero({ typography: Object.keys(cleaned).length ? cleaned : undefined });
+  };
+
+  const updateHeroVideo = (updates: any) => {
+    const current = hero.heroVideo || {};
+    const merged = { ...current, ...updates } as any;
+    const url = typeof merged.url === "string" ? merged.url.trim() : current.url;
+    if (!url) {
+      setHero({ heroVideo: undefined });
+      return;
+    }
+    const cleaned: any = { ...merged, url };
+    if (typeof cleaned.poster === "string") {
+      const posterTrimmed = cleaned.poster.trim();
+      if (posterTrimmed) cleaned.poster = posterTrimmed; else delete cleaned.poster;
+    }
+    if (typeof cleaned.caption === "string") {
+      const captionTrimmed = cleaned.caption.trim();
+      if (captionTrimmed) cleaned.caption = captionTrimmed; else delete cleaned.caption;
+    }
+    ["autoplay", "muted", "loop"].forEach((flag) => {
+      if (typeof cleaned[flag] === "boolean" && cleaned[flag] === false) {
+        delete cleaned[flag];
+      } else if (cleaned[flag] === undefined || cleaned[flag] === null) {
+        delete cleaned[flag];
+      }
+    });
+    setHero({ heroVideo: cleaned });
+  };
 
   const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -185,6 +247,35 @@ export default function Editor() {
           />
           <label>نص زر الدعوة</label>
           <input value={hero.ctaText || ""} onChange={e => setHero({ ctaText: e.target.value })} />
+          <div className="editor-group" style={{ marginTop: 18 }}>
+            <div className="editor-section__header" style={{ margin: 0 }}>
+              <h4 style={{ margin: 0 }}>تنسيق النص</h4>
+              {hero.typography ? (
+                <button type="button" className="btn ghost" onClick={() => setHero({ typography: undefined })}>
+                  إعادة التعيين
+                </button>
+              ) : null}
+            </div>
+            <label>لون العنوان والنص (يقبل قيم CSS مثل #ffffff أو var(--color))</label>
+            <input
+              placeholder="#f8fafc"
+              value={heroTypography.color || ""}
+              onChange={e => updateHeroTypography({ color: e.target.value })}
+            />
+            <label>حجم العنوان الرئيسي</label>
+            <input
+              placeholder="مثال: 3rem أو clamp(2.5rem, 6vw, 3.75rem)"
+              value={heroTypography.fontSize || ""}
+              onChange={e => updateHeroTypography({ fontSize: e.target.value })}
+            />
+            <label>أقصى عرض لمجموعة النص</label>
+            <input
+              placeholder="مثال: 52ch أو 640px"
+              value={heroTypography.maxWidth || ""}
+              onChange={e => updateHeroTypography({ maxWidth: e.target.value })}
+            />
+            <p className="small muted">اترك الحقول فارغة للعودة إلى الإعدادات الافتراضية.</p>
+          </div>
           <div className="editor-hero-image">
             <div className="editor-section__header" style={{ marginTop: 16 }}>
               <h4 style={{ margin: 0 }}>الصورة الرئيسية</h4>
@@ -204,6 +295,61 @@ export default function Editor() {
             ) : (
               <p className="small">اختر إحدى صور المنتج أدناه واجعلها صورة البطل لإبراز المنتج من أول لحظة.</p>
             )}
+          </div>
+          <div className="editor-group">
+            <div className="editor-section__header" style={{ marginTop: 16 }}>
+              <h4 style={{ margin: 0 }}>فيديو البطل</h4>
+              {heroVideo?.url ? (
+                <button type="button" className="btn ghost" onClick={() => setHero({ heroVideo: undefined })}>
+                  إزالة الفيديو
+                </button>
+              ) : null}
+            </div>
+            <label>رابط الفيديو (MP4 أو بث مباشر عبر CDN)</label>
+            <input
+              placeholder="https://cdn.example.com/hero.mp4"
+              value={heroVideo?.url || ""}
+              onChange={e => updateHeroVideo({ url: e.target.value })}
+            />
+            <label>صورة الغلاف (اختياري)</label>
+            <input
+              placeholder="https://cdn.example.com/poster.jpg"
+              value={heroVideo?.poster || ""}
+              onChange={e => updateHeroVideo({ poster: e.target.value })}
+            />
+            <label>وصف مختصر/تعليق للفيديو</label>
+            <input
+              placeholder="لمحة عن الفيديو تظهر أسفل المشغّل"
+              value={heroVideo?.caption || ""}
+              onChange={e => updateHeroVideo({ caption: e.target.value })}
+            />
+            <div className="editor-checkboxes">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={Boolean(heroVideo?.autoplay)}
+                  onChange={e => updateHeroVideo({ autoplay: e.target.checked, muted: e.target.checked ? true : heroVideo?.muted })}
+                />
+                تشغيل تلقائي (سيتم كتم الصوت تلقائياً)
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={Boolean(heroVideo?.loop)}
+                  onChange={e => updateHeroVideo({ loop: e.target.checked })}
+                />
+                تكرار التشغيل
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={Boolean(heroVideo?.muted)}
+                  onChange={e => updateHeroVideo({ muted: e.target.checked })}
+                />
+                كتم الصوت
+              </label>
+            </div>
+            <p className="small muted">اترك الرابط فارغاً لإخفاء الفيديو والاعتماد على الصورة الرئيسية فقط.</p>
           </div>
         </section>
 
