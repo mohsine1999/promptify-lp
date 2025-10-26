@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { LPDocument } from "@/lib/schema/page";
 
 type LandingPageProps = {
@@ -6,14 +7,68 @@ type LandingPageProps = {
 
 export function LandingPage({ doc }: LandingPageProps) {
   const heroImage = doc?.hero?.heroImage;
+  const heroVideo = doc?.hero?.heroVideo;
+  const heroTypography = doc?.hero?.typography;
   const gallery = (doc?.product?.images || []).filter((img) => img?.url && img.url !== heroImage?.url);
   const checkoutFields = doc?.checkout?.fields || [];
+
+  const heroStyleVars: CSSProperties = {};
+  if (heroTypography?.color) {
+    const color = heroTypography.color;
+    heroStyleVars["--hero-copy-color" as any] = color;
+    heroStyleVars["--hero-copy-muted-color" as any] = color;
+    heroStyleVars["--hero-copy-accent-color" as any] = color;
+    heroStyleVars["--hero-copy-marker-color" as any] = color;
+  }
+  if (heroTypography?.fontSize) {
+    heroStyleVars["--hero-headline-size" as any] = heroTypography.fontSize;
+  }
+  if (heroTypography?.maxWidth) {
+    heroStyleVars["--hero-copy-width" as any] = heroTypography.maxWidth;
+  }
+
+  const renderHeroMedia = () => {
+    if (heroVideo?.url) {
+      const autoplay = heroVideo.autoplay ?? false;
+      const muted = heroVideo.muted ?? autoplay;
+      const loop = heroVideo.loop ?? false;
+      return (
+        <figure className="hero-media">
+          <video
+            controls
+            autoPlay={autoplay}
+            muted={muted}
+            loop={loop}
+            playsInline
+            poster={heroVideo.poster || heroImage?.url}
+          >
+            <source src={heroVideo.url} />
+            متصفحك لا يدعم تشغيل الفيديو.
+          </video>
+          {(heroVideo.caption || heroImage?.alt) && (
+            <figcaption>{heroVideo.caption || heroImage?.alt}</figcaption>
+          )}
+        </figure>
+      );
+    }
+
+    if (heroImage?.url) {
+      return (
+        <figure className="hero-media">
+          <img src={heroImage.url} alt={heroImage.alt || "صورة المنتج"} />
+          {heroImage.alt && <figcaption>{heroImage.alt}</figcaption>}
+        </figure>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div className="preview-wrapper" style={{ marginTop: 16 }}>
       <div dir="rtl" className="preview">
-        <div className={`hero${heroImage?.url ? " with-image" : ""}`}>
-          <div className="hero-copy">
+        <div className={`hero${(heroVideo?.url || heroImage?.url) ? " with-image" : ""}`}>
+          <div className="hero-copy" style={heroStyleVars}>
             <h1>{doc?.hero?.headline}</h1>
             {doc?.hero?.subheadline && <p>{doc.hero.subheadline}</p>}
             {doc?.hero?.bulletPoints?.length ? (
@@ -21,12 +76,7 @@ export function LandingPage({ doc }: LandingPageProps) {
             ) : null}
             <a className="cta" href="#checkout">{doc?.hero?.ctaText || "اطلب الآن"}</a>
           </div>
-          {heroImage?.url ? (
-            <figure className="hero-media">
-              <img src={heroImage.url} alt={heroImage.alt || "صورة المنتج"} />
-              {heroImage.alt && <figcaption>{heroImage.alt}</figcaption>}
-            </figure>
-          ) : null}
+          {renderHeroMedia()}
         </div>
         {gallery.length ? (
           <section className="preview-gallery">
