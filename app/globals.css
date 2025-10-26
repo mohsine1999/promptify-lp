@@ -572,7 +572,7 @@ label {
   max-width: 520px;
 }
 
-.feature-grid {
+.pricing-grid {
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -593,7 +593,8 @@ label {
   overflow: hidden;
 }
 
-.feature-card:hover {
+.plan-card.is-popular {
+  border-color: rgba(56, 189, 248, 0.4);
   transform: translateY(-6px);
   border-color: rgba(56, 189, 248, 0.45);
   box-shadow: 0 24px 50px rgba(8, 21, 45, 0.45);
@@ -1402,6 +1403,7 @@ label {
   line-height: 1;
   padding: 12px clamp(18px, 2vw, 28px);
   display: inline-flex;
+  gap: 10px;
   align-items: center;
   justify-content: center;
   gap: 10px;
