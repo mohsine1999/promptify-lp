@@ -1,6 +1,6 @@
 "use client";
 
-import { Command, Search, Sparkles, User } from "lucide-react";
+import { Command as CommandIcon, Search, Sparkles, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
@@ -52,7 +52,7 @@ export function SiteHeader() {
                   <Search size={18} aria-hidden />
                   Quick search
                   <kbd className="kbd">
-                    <Command size={14} aria-hidden />
+                    <CommandIcon size={14} aria-hidden />
                     K
                   </kbd>
                 </Button>
