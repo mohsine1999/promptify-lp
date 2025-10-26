@@ -25,7 +25,7 @@ const faqItems = [
 
 export function FAQ() {
   return (
-    <section className="section" id="faq" aria-labelledby="faq-title">
+    <section className="section section--faq" id="faq" aria-labelledby="faq-title" data-surface="layered">
       <div className="section__header">
         <h2 id="faq-title">Questions, answered</h2>
         <p>If you need deeper details or a custom plan, reach out at hello@promptify.ai.</p>

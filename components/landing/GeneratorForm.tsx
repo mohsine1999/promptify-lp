@@ -57,19 +57,20 @@ export function GeneratorForm() {
   };
 
   return (
-    <section className="section generator" aria-labelledby="generator-title">
-      <FadeStagger>
-        <FadeItem>
-          <div className="section__header">
-            <h2 id="generator-title">Kickstart a page in under a minute</h2>
-            <p>Drop in context, choose a template, and we’ll assemble a production-ready draft.</p>
-          </div>
-        </FadeItem>
-        <FadeItem>
-          <form className="generator__form" onSubmit={handleSubmit(onSubmit)}>
-            <label htmlFor="productName">Product name</label>
-            <Input id="productName" placeholder="Orbit Analytics" {...register("productName")} error={formState.errors.productName?.message} />
-            <label htmlFor="description">Describe your offer</label>
+    <section className="section generator" aria-labelledby="generator-title" data-surface="glass" data-width="split">
+      <div className="generator__layout">
+        <FadeStagger className="generator__stagger">
+          <FadeItem>
+            <div className="section__header">
+              <h2 id="generator-title">Kickstart a page in under a minute</h2>
+              <p>Drop in context, choose a template, and we’ll assemble a production-ready draft.</p>
+            </div>
+          </FadeItem>
+          <FadeItem>
+            <form className="generator__form" onSubmit={handleSubmit(onSubmit)}>
+              <label htmlFor="productName">Product name</label>
+              <Input id="productName" placeholder="Orbit Analytics" {...register("productName")} error={formState.errors.productName?.message} />
+              <label htmlFor="description">Describe your offer</label>
             <Textarea
               id="description"
               rows={4}
@@ -112,14 +113,15 @@ export function GeneratorForm() {
                 Try sample template
               </Button>
             </div>
-            {formState.errors.root ? (
-              <p role="alert" className="field__message">
-                {formState.errors.root.message}
-              </p>
-            ) : null}
-          </form>
-        </FadeItem>
-      </FadeStagger>
+              {formState.errors.root ? (
+                <p role="alert" className="field__message">
+                  {formState.errors.root.message}
+                </p>
+              ) : null}
+            </form>
+          </FadeItem>
+        </FadeStagger>
+      </div>
     </section>
   );
 }

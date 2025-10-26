@@ -58,7 +58,7 @@ const billings: Billing[] = ["monthly", "yearly"];
 
 export function Pricing() {
   return (
-    <section className="section" id="pricing" aria-labelledby="pricing-title">
+    <section className="section section--pricing" id="pricing" aria-labelledby="pricing-title" data-surface="muted" data-width="wide">
       <div className="section__header">
         <h2 id="pricing-title">Pricing that flexes with your launch cadence</h2>
         <p>Switch plans anytime. All tiers include accessible templates, instant previews, and export options.</p>

@@ -27,7 +27,7 @@ const features = [
 
 export function Features() {
   return (
-    <section className="section" aria-labelledby="features-title">
+    <section className="section section--features" aria-labelledby="features-title" data-surface="layered">
       <div className="section__header">
         <h2 id="features-title">Designed to launch polished pages without the busywork</h2>
         <p>

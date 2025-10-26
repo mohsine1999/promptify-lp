@@ -24,7 +24,7 @@ const testimonials = [
 
 export function Testimonials() {
   return (
-    <section className="section" aria-labelledby="testimonials-title">
+    <section className="section section--testimonials" aria-labelledby="testimonials-title" data-surface="layered">
       <div className="section__header">
         <h2 id="testimonials-title">Trusted by lean teams shipping fast</h2>
         <p>Promptify drives clarity and confidence for crews focused on outcomes over busywork.</p>

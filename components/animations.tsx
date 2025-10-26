@@ -5,12 +5,14 @@ import * as React from "react";
 
 type MotionWrapperProps = {
   children: React.ReactNode;
+  className?: string;
 };
 
-export function FadeStagger({ children }: MotionWrapperProps) {
+export function FadeStagger({ children, className }: MotionWrapperProps) {
   const reduceMotion = useReducedMotion();
   return (
     <motion.div
+      className={className}
       initial={reduceMotion ? "show" : "hidden"}
       whileInView="show"
       viewport={{ once: true, margin: "-20%" }}
@@ -31,10 +33,11 @@ export function FadeStagger({ children }: MotionWrapperProps) {
   );
 }
 
-export function FadeItem({ children }: MotionWrapperProps) {
+export function FadeItem({ children, className }: MotionWrapperProps) {
   const reduceMotion = useReducedMotion();
   return (
     <motion.div
+      className={className}
       variants={{
         hidden: { opacity: 0, y: reduceMotion ? 0 : 12 },
         show: {

@@ -25,7 +25,7 @@ const steps = [
 
 export function Steps() {
   return (
-    <section className="section" id="how-it-works" aria-labelledby="steps-title">
+    <section className="section section--steps" id="how-it-works" aria-labelledby="steps-title" data-surface="muted">
       <div className="section__header">
         <h2 id="steps-title">Three steps from prompt to production</h2>
         <p>Every handoff is accessible, performant, and ready for traffic spikes.</p>

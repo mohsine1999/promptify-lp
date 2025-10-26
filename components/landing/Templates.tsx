@@ -48,7 +48,13 @@ const templateKeys: TemplateKey[] = ["saas", "agency", "ecommerce"];
 
 export function Templates() {
   return (
-    <section className="section" id="templates" aria-labelledby="templates-title">
+    <section
+      className="section section--templates"
+      id="templates"
+      aria-labelledby="templates-title"
+      data-surface="layered"
+      data-width="wide"
+    >
       <div className="section__header">
         <h2 id="templates-title">Templates engineered for conversion</h2>
         <p>
