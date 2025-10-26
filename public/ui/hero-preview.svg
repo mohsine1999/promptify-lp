@@ -1,0 +1,19 @@
+<svg width="1040" height="640" viewBox="0 0 1040 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1040" height="640" rx="32" fill="url(#paint0_linear_hero)"/>
+  <rect x="48" y="48" width="312" height="48" rx="14" fill="rgba(8,20,36,0.65)" stroke="rgba(255,255,255,0.08)"/>
+  <rect x="48" y="120" width="440" height="52" rx="16" fill="rgba(8,20,36,0.75)" stroke="rgba(255,255,255,0.08)"/>
+  <rect x="48" y="188" width="368" height="28" rx="12" fill="rgba(255,255,255,0.06)"/>
+  <rect x="48" y="236" width="520" height="28" rx="12" fill="rgba(255,255,255,0.06)"/>
+  <rect x="48" y="284" width="488" height="28" rx="12" fill="rgba(255,255,255,0.05)"/>
+  <rect x="48" y="364" width="944" height="180" rx="24" fill="rgba(8,20,36,0.7)" stroke="rgba(255,255,255,0.04)"/>
+  <rect x="48" y="572" width="212" height="36" rx="14" fill="rgba(56,189,248,0.35)"/>
+  <rect x="276" y="572" width="182" height="36" rx="14" fill="rgba(14,165,233,0.28)"/>
+  <circle cx="844" cy="156" r="96" fill="rgba(56,189,248,0.16)"/>
+  <circle cx="848" cy="156" r="64" fill="rgba(56,189,248,0.22)"/>
+  <defs>
+    <linearGradient id="paint0_linear_hero" x1="90" y1="32" x2="920" y2="608" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071326"/>
+      <stop offset="1" stop-color="#0F1F3B"/>
+    </linearGradient>
+  </defs>
+</svg>
