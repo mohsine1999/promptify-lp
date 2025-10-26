@@ -1,98 +1,101 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Command, Search, Sparkles, User } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-import ThemeToggle from "./ThemeToggle";
+import { usePathname } from "next/navigation";
+import * as React from "react";
 
-const LINKS = [
-  { href: "/", label: "الرئيسية" },
-  { href: "/generate", label: "توليد صفحة" },
-  { href: "/dashboard", label: "لوحة التحكم" },
+import { cn } from "../lib/utils";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
+import { ThemeToggle } from "./ThemeToggle";
+
+const NAV_LINKS = [
+  { href: "#templates", label: "Templates" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#how-it-works", label: "How it works" },
+  { href: "#faq", label: "FAQ" },
 ];
 
 export function SiteHeader() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = React.useState(false);
 
-  useEffect(() => {
-    const closeOnResize = () => {
-      if (window.innerWidth >= 960) {
-        setMenuOpen(false);
-      }
-    };
-    window.addEventListener("resize", closeOnResize);
-    return () => window.removeEventListener("resize", closeOnResize);
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const originalOverflow = document.body.style.overflow;
-    if (menuOpen) {
-      document.body.style.overflow = "hidden";
-      document.body.classList.add("nav-open");
-    } else {
-      document.body.style.overflow = "";
-      document.body.classList.remove("nav-open");
-    }
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      document.body.classList.remove("nav-open");
-    };
-  }, [menuOpen]);
-
-  const toggleMenu = () => setMenuOpen((prev) => !prev);
-  const closeMenu = () => setMenuOpen(false);
+  React.useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
 
   return (
-    <header className="site-header">
+    <header className={cn("site-header", isOpen && "is-open")}> 
       <div className="site-header__inner">
         <Link href="/" className="brand" aria-label="Promptify">
-          <Image
-            className="brand__image"
-            src="/promptify-logo.svg"
-            alt="Promptify"
-            width={176}
-            height={48}
-            priority
-            sizes="(max-width: 768px) 160px, 176px"
-          />
+          <Sparkles aria-hidden className="brand__icon" />
+          <span className="brand__label">Promptify</span>
         </Link>
-        <div className="site-header__controls">
-          <nav
-            id="primary-navigation"
-            aria-label="روابط أساسية"
-            className={`site-nav${menuOpen ? " is-open" : ""}`}
-          >
-            <div className="site-nav__links">
-              {LINKS.map((link) => (
-                <Link key={link.href} href={link.href} className="nav-link" onClick={closeMenu}>
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-            <div className="site-nav__meta">
-              <ThemeToggle />
-              <Link className="btn primary site-nav__cta" href="/generate" onClick={closeMenu}>
-                ابدأ الآن
+        <nav
+          id="primary-navigation"
+          className={cn("site-nav", isOpen && "is-open")}
+          aria-label="Primary navigation"
+        >
+          <div className="site-nav__links">
+            {NAV_LINKS.map(({ href, label }) => (
+              <Link key={href} href={href} className="nav-link">
+                {label}
               </Link>
-            </div>
-          </nav>
-          <button
-            type="button"
-            className={`site-nav__toggle${menuOpen ? " is-open" : ""}`}
-            aria-expanded={menuOpen}
-            aria-controls="primary-navigation"
-            aria-label="القائمة الرئيسية"
-            onClick={toggleMenu}
-          >
-            <span className="site-nav__toggle-bars" aria-hidden="true">
-              <span />
-            </span>
-            <span className="site-nav__toggle-text">القائمة</span>
-          </button>
-        </div>
+            ))}
+          </div>
+          <div className="site-nav__meta">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" className="nav-link__search">
+                  <Search size={18} aria-hidden />
+                  Quick search
+                  <kbd className="kbd">
+                    <Command size={14} aria-hidden />
+                    K
+                  </kbd>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="dialog-search">
+                <DialogTitle>Search templates</DialogTitle>
+                <Command label="Search templates">
+                  <CommandInput placeholder="Try: SaaS analytics, D2C skincare, agency" aria-label="Search templates" />
+                  <CommandList>
+                    <CommandEmpty>No templates found.</CommandEmpty>
+                    <CommandGroup heading="Popular">
+                      <CommandItem value="saas dashboard">SaaS dashboard</CommandItem>
+                      <CommandItem value="agency portfolio">Agency portfolio</CommandItem>
+                      <CommandItem value="product hunt">Product Hunt launch</CommandItem>
+                    </CommandGroup>
+                    <CommandGroup heading="Use cases">
+                      <CommandItem value="freelancer">Freelancer services</CommandItem>
+                      <CommandItem value="ecommerce launch">Ecommerce drop</CommandItem>
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </DialogContent>
+            </Dialog>
+            <ThemeToggle />
+            <Button variant="ghost" className="nav-link__account">
+              <User size={18} aria-hidden />
+              Sign in
+            </Button>
+            <Button size="sm" className="site-nav__cta">Generate your page</Button>
+          </div>
+        </nav>
+        <button
+          className={cn("site-nav__toggle", isOpen && "is-open")}
+          onClick={() => setIsOpen((prev) => !prev)}
+          type="button"
+          aria-expanded={isOpen}
+          aria-controls="primary-navigation"
+          aria-label="Toggle navigation"
+        >
+          <span />
+        </button>
       </div>
-      {menuOpen ? <button type="button" className="site-nav__backdrop" onClick={closeMenu} aria-hidden="true" /> : null}
+      {isOpen ? <button type="button" className="site-nav__backdrop" aria-hidden onClick={() => setIsOpen(false)} /> : null}
     </header>
   );
 }
