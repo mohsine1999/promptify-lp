@@ -5,7 +5,7 @@ import { buildDeploymentUrl } from "@/lib/config/deployment";
 
 export async function POST(_: NextRequest, ctx: { params: { id: string }}) {
   try {
-    const page = db.publish(ctx.params.id);
+    const page = await db.publish(ctx.params.id);
     if (!page) {
       return NextResponse.json({ ok: false, error: "NOT_FOUND" }, { status: 404 });
     }

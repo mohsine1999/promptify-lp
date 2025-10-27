@@ -1,4 +1,5 @@
 export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { randomUUID } from "crypto";
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     let id: string = randomUUID();
     try {
-      const page = db.create({ doc });
+      const page = await db.create({ doc });
       if (page?.id) id = page.id;
     } catch (error: unknown) {
       console.error("db.create failed (read-only FS in prod is likely):", (error as Error)?.message ?? error);

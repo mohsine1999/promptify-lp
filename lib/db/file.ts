@@ -1,4 +1,5 @@
 import fs from "fs";
+import fsp from "fs/promises";
 import path from "path";
 import { buildDeploymentHost } from "@/lib/config/deployment";
 import type { LPDocument } from "@/lib/schema/page";
@@ -15,6 +16,35 @@ export type StoredPage = {
 };
 
 const TMP_DIR = path.join("/tmp", "promptify-lp-data");
+const BLOB_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN?.trim() || "";
+const BLOB_API_BASE = process.env.BLOB_API_BASE_URL?.trim() || "https://api.vercel.com";
+const BLOB_PAGES_KEY = process.env.BLOB_PAGES_KEY?.trim() || "promptify/pages.json";
+const onVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true";
+const USE_BLOB = onVercel && !!BLOB_WRITE_TOKEN;
+
+if (onVercel && !USE_BLOB) {
+  console.warn(
+    "BLOB_READ_WRITE_TOKEN not found – landing pages will only persist for the lifetime of a single serverless instance."
+  );
+}
+
+const blobHeaders = () => {
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${BLOB_WRITE_TOKEN}`);
+  return headers;
+};
+
+async function ensureFs(filePath: string) {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    await fsp.mkdir(dir, { recursive: true });
+  }
+  try {
+    await fsp.access(filePath, fs.constants.F_OK);
+  } catch {
+    await fsp.writeFile(filePath, JSON.stringify([]), "utf-8");
+  }
+}
 
 function resolveDataDir() {
   const configured = process.env.DATA_DIR?.trim();
@@ -26,22 +56,120 @@ function resolveDataDir() {
 const DATA_DIR = resolveDataDir();
 const FILE = path.join(DATA_DIR, "pages.json");
 
-function ensure() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify([]), "utf-8");
+let cachedPages: StoredPage[] | null = null;
+
+function clonePages(list: StoredPage[]): StoredPage[] {
+  return JSON.parse(JSON.stringify(list)) as StoredPage[];
 }
 
-function readAll(): StoredPage[] {
+async function fetchBlobJSON<T>(url: string): Promise<T | null> {
+  const res = await fetch(url);
+  if (!res.ok) return null;
   try {
-    ensure();
-    const raw = fs.readFileSync(FILE, "utf-8");
-    return JSON.parse(raw) as StoredPage[];
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function readAllFromBlob(): Promise<StoredPage[]> {
+  if (cachedPages) {
+    return clonePages(cachedPages);
+  }
+
+  const headers = blobHeaders();
+  const listUrl = new URL("/v2/blob/list", BLOB_API_BASE);
+  listUrl.searchParams.set("prefix", BLOB_PAGES_KEY);
+
+  const listRes = await fetch(listUrl, { headers });
+  if (!listRes.ok) {
+    throw new Error(`Failed to list blob entries (${listRes.status})`);
+  }
+
+  const listJson = (await listRes.json()) as {
+    blobs: { pathname: string; url: string; downloadUrl?: string }[];
+  };
+
+  const match = listJson.blobs.find((blob) => blob.pathname === BLOB_PAGES_KEY);
+
+  if (!match) {
+    await writeAllToBlob([]);
+    cachedPages = [];
+    return [];
+  }
+
+  const data = await fetchBlobJSON<StoredPage[]>(match.downloadUrl || match.url);
+  if (!data) {
+    await writeAllToBlob([]);
+    cachedPages = [];
+    return [];
+  }
+
+  cachedPages = clonePages(data);
+  return clonePages(data);
+}
+
+async function writeAllToBlob(list: StoredPage[]) {
+  const headers = blobHeaders();
+  headers.set("x-vercel-filename", BLOB_PAGES_KEY);
+  headers.set("x-vercel-blob-add-random-suffix", "false");
+  headers.set("x-vercel-blob-access", "private");
+  headers.set("Content-Type", "application/json");
+
+  const putUrl = new URL("/v2/blob/put", BLOB_API_BASE);
+  const res = await fetch(putUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(list, null, 2),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to persist blob (${res.status})`);
+  }
+
+  cachedPages = clonePages(list);
+}
+
+async function readAllFromFs(): Promise<StoredPage[]> {
+  await ensureFs(FILE);
+  try {
+    const raw = await fsp.readFile(FILE, "utf-8");
+    const data = JSON.parse(raw) as StoredPage[];
+    cachedPages = clonePages(data);
+    return clonePages(data);
   } catch {
     return [];
   }
 }
 
-function writeAll(list: StoredPage[]) { ensure(); fs.writeFileSync(FILE, JSON.stringify(list, null, 2), "utf-8"); }
+async function writeAllToFs(list: StoredPage[]) {
+  await ensureFs(FILE);
+  await fsp.writeFile(FILE, JSON.stringify(list, null, 2), "utf-8");
+  cachedPages = clonePages(list);
+}
+
+async function readAll(): Promise<StoredPage[]> {
+  try {
+    if (USE_BLOB) {
+      return await readAllFromBlob();
+    }
+  } catch (error) {
+    console.error("Falling back to filesystem storage after blob read failure", error);
+  }
+  return readAllFromFs();
+}
+
+async function writeAll(list: StoredPage[]) {
+  if (USE_BLOB) {
+    try {
+      await writeAllToBlob(list);
+      return;
+    } catch (error) {
+      console.error("Blob storage write failed, persisting to filesystem", error);
+    }
+  }
+  await writeAllToFs(list);
+}
 function slugify(input: string) {
   return (input || "page").toString().trim().toLowerCase()
     .replace(/[^\u0600-\u06FFa-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").slice(0, 60);
@@ -59,10 +187,16 @@ function ensureUniqueSlug(list: StoredPage[], desired: string, excludeId?: strin
 }
 
 export const db = {
-  list(): StoredPage[] { return readAll().sort((a,b)=> (a.updatedAt < b.updatedAt ? 1 : -1)); },
-  get(id: string): StoredPage | null { return readAll().find(p => p.id === id) || null; },
-  create(input: { doc: LPDocument }): StoredPage {
-    const all = readAll();
+  async list(): Promise<StoredPage[]> {
+    const all = await readAll();
+    return [...all].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  },
+  async get(id: string): Promise<StoredPage | null> {
+    const all = await readAll();
+    return all.find((p) => p.id === id) || null;
+  },
+  async create(input: { doc: LPDocument }): Promise<StoredPage> {
+    const all = await readAll();
     const id = randomId();
     const desiredSlug = slugify(input.doc.product?.name || id) || id;
     const slug = ensureUniqueSlug(all, desiredSlug, id);
@@ -76,15 +210,22 @@ export const db = {
       createdAt: now,
       updatedAt: now,
     };
-    all.push(page); writeAll(all); return page;
+    all.push(page);
+    await writeAll(all);
+    return page;
   },
-  update(id: string, doc: LPDocument): StoredPage | null {
-    const all = readAll(); const idx = all.findIndex(p => p.id === id); if (idx === -1) return null;
-    const now = new Date().toISOString(); all[idx] = { ...all[idx], doc, updatedAt: now }; writeAll(all); return all[idx];
+  async update(id: string, doc: LPDocument): Promise<StoredPage | null> {
+    const all = await readAll();
+    const idx = all.findIndex((p) => p.id === id);
+    if (idx === -1) return null;
+    const now = new Date().toISOString();
+    all[idx] = { ...all[idx], doc, updatedAt: now };
+    await writeAll(all);
+    return all[idx];
   },
-  publish(id: string): StoredPage | null {
-    const all = readAll();
-    const idx = all.findIndex(p => p.id === id);
+  async publish(id: string): Promise<StoredPage | null> {
+    const all = await readAll();
+    const idx = all.findIndex((p) => p.id === id);
     if (idx === -1) return null;
     const now = new Date().toISOString();
     const current = all[idx];
@@ -92,7 +233,9 @@ export const db = {
     const slug = ensureUniqueSlug(all, desiredSlug, current.id);
     if (current.status === "published") {
       const updated = { ...current, slug, domain: buildDeploymentHost(slug), updatedAt: now };
-      all[idx] = updated; writeAll(all); return updated;
+      all[idx] = updated;
+      await writeAll(all);
+      return updated;
     }
     const published: StoredPage = {
       ...current,
@@ -102,10 +245,18 @@ export const db = {
       updatedAt: now,
       domain: buildDeploymentHost(slug),
     };
-    all[idx] = published; writeAll(all); return published;
+    all[idx] = published;
+    await writeAll(all);
+    return published;
   },
-  findBySlug(slug: string): StoredPage | null {
-    return readAll().find(p => p.slug === slug) || null;
+  async findBySlug(slug: string): Promise<StoredPage | null> {
+    const all = await readAll();
+    return all.find((p) => p.slug === slug) || null;
   },
-  delete(id: string) { const out = readAll().filter(p => p.id !== id); writeAll(out); return true; }
+  async delete(id: string): Promise<boolean> {
+    const all = await readAll();
+    const out = all.filter((p) => p.id !== id);
+    await writeAll(out);
+    return true;
+  },
 };

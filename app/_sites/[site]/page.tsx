@@ -9,8 +9,8 @@ type PageProps = {
   params: { site: string };
 };
 
-export function generateMetadata({ params }: PageProps): Metadata {
-  const page = db.findBySlug(params.site);
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const page = await db.findBySlug(params.site);
   if (!page || page.status !== "published") {
     return {};
   }
@@ -22,8 +22,8 @@ export function generateMetadata({ params }: PageProps): Metadata {
   };
 }
 
-export default function SitePage({ params }: PageProps) {
-  const page = db.findBySlug(params.site);
+export default async function SitePage({ params }: PageProps) {
+  const page = await db.findBySlug(params.site);
   if (!page || page.status !== "published") {
     notFound();
   }
