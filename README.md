@@ -14,5 +14,13 @@ cp .env.example .env.local
 npm run dev
 ```
 
+### Persisting generated pages on Vercel
+
+The development server stores landing pages on the local filesystem under `.data/`. When running on Vercel, file writes are
+ephemeral, so configure [Vercel Blob storage](https://vercel.com/docs/storage/vercel-blob/quickstart) and expose a
+`BLOB_READ_WRITE_TOKEN` (and optionally `BLOB_API_BASE_URL` / `BLOB_PAGES_KEY`) environment variable. The app automatically
+switches to Blob-backed persistence when the token is present, ensuring `/api/pages/[id]` continues to resolve after
+deployment.
+
 ## Tip
 If a product URL is blocked by AliExpress shields, try the canonical URL again or different network. The `/api/resolve` endpoint helps debug what was extracted.
