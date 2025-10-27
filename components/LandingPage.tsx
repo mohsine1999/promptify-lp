@@ -12,19 +12,19 @@ export function LandingPage({ doc }: LandingPageProps) {
   const gallery = (doc?.product?.images || []).filter((img) => img?.url && img.url !== heroImage?.url);
   const checkoutFields = doc?.checkout?.fields || [];
 
-  const heroStyleVars: CSSProperties = {};
+  const heroStyleVars: CSSProperties & Record<`--${string}`, string | number> = {};
   if (heroTypography?.color) {
     const color = heroTypography.color;
-    heroStyleVars["--hero-copy-color" as any] = color;
-    heroStyleVars["--hero-copy-muted-color" as any] = color;
-    heroStyleVars["--hero-copy-accent-color" as any] = color;
-    heroStyleVars["--hero-copy-marker-color" as any] = color;
+    heroStyleVars["--hero-copy-color"] = color;
+    heroStyleVars["--hero-copy-muted-color"] = color;
+    heroStyleVars["--hero-copy-accent-color"] = color;
+    heroStyleVars["--hero-copy-marker-color"] = color;
   }
   if (heroTypography?.fontSize) {
-    heroStyleVars["--hero-headline-size" as any] = heroTypography.fontSize;
+    heroStyleVars["--hero-headline-size"] = heroTypography.fontSize;
   }
   if (heroTypography?.maxWidth) {
-    heroStyleVars["--hero-copy-width" as any] = heroTypography.maxWidth;
+    heroStyleVars["--hero-copy-width"] = heroTypography.maxWidth;
   }
 
   const renderHeroMedia = () => {
