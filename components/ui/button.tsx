@@ -2,7 +2,7 @@
 
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
@@ -36,27 +36,55 @@ export const buttonVariants = cva(
   }
 );
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-    loading?: boolean;
+type ButtonBaseProps = VariantProps<typeof buttonVariants> & {
+  className?: string;
+  children?: React.ReactNode;
+  disabled?: boolean;
+  loading?: boolean;
+};
+
+type MotionButtonProps = ButtonBaseProps &
+  Omit<HTMLMotionProps<"button">, keyof ButtonBaseProps | "asChild" | "ref"> & {
+    asChild?: false;
   };
 
+type SlotButtonProps = ButtonBaseProps &
+  Omit<React.ComponentPropsWithoutRef<typeof Slot>, keyof ButtonBaseProps | "asChild" | "ref"> & {
+    asChild: true;
+  };
+
+type MotionButtonExtras = Omit<MotionButtonProps, keyof ButtonBaseProps | "asChild">;
+type SlotButtonExtras = Omit<SlotButtonProps, keyof ButtonBaseProps | "asChild">;
+
+export type ButtonProps = MotionButtonProps | SlotButtonProps;
+
 const MotionButtonBase = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant, size, loading, state, disabled, children, asChild, ...props },
+  props,
   ref
 ) {
-  const baseClass = cn(buttonVariants({ variant, size }), className, (loading ?? state === "loading") && "is-loading");
-  const isLoading = loading ?? state === "loading";
+  if (props.asChild) {
+    const {
+      className,
+      variant,
+      size,
+      loading,
+      state,
+      disabled,
+      children,
+      asChild: _asChild,
+      ...slotProps
+    } = props;
 
-  if (asChild) {
+    const isLoading = loading ?? state === "loading";
+    const baseClass = cn(buttonVariants({ variant, size }), className, isLoading && "is-loading");
+
     return (
       <Slot
-        ref={ref as any}
+        ref={ref as unknown as React.Ref<HTMLButtonElement>}
         className={baseClass}
         data-state={isLoading ? "loading" : undefined}
         aria-disabled={disabled || isLoading}
-        {...props}
+        {...(slotProps as SlotButtonExtras)}
       >
         <span className="btn__content" aria-live="polite">
           {isLoading ? <span className="btn__spinner" aria-hidden /> : null}
@@ -65,6 +93,22 @@ const MotionButtonBase = React.forwardRef<HTMLButtonElement, ButtonProps>(functi
       </Slot>
     );
   }
+
+  const motionProps = props as MotionButtonProps;
+  const {
+    className,
+    variant,
+    size,
+    loading,
+    state,
+    disabled,
+    children,
+    asChild: _asChild,
+    ...rest
+  } = motionProps;
+
+  const isLoading = loading ?? state === "loading";
+  const baseClass = cn(buttonVariants({ variant, size }), className, isLoading && "is-loading");
 
   return (
     <motion.button
@@ -75,7 +119,7 @@ const MotionButtonBase = React.forwardRef<HTMLButtonElement, ButtonProps>(functi
       whileHover={{ y: -2 }}
       whileTap={{ y: 0 }}
       transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
-      {...props}
+      {...(rest as MotionButtonExtras)}
     >
       <span className="btn__content" aria-live="polite">
         {isLoading ? <span className="btn__spinner" aria-hidden /> : null}

@@ -1,13 +1,25 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 import * as React from "react";
 import { cn } from "../../lib/utils";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogPortal = DialogPrimitive.Portal;
+
+type DragHandlerKeys = "onDrag" | "onDragStart" | "onDragEnd";
+
+type PrimitiveContentProps = Omit<
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
+  "asChild" | "ref" | DragHandlerKeys
+>;
+
+type MotionContentProps = Omit<HTMLMotionProps<"div">, "ref" | DragHandlerKeys> &
+  Pick<HTMLMotionProps<"div">, DragHandlerKeys>;
+
+export type DialogContentProps = PrimitiveContentProps & MotionContentProps;
 
 export const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
@@ -24,20 +36,27 @@ export const DialogOverlay = React.forwardRef<
 
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+  DialogContentProps
 >(function DialogContent({ className, children, ...props }, ref) {
+  const { onDrag, onDragStart, onDragEnd, ...rest } = props;
+  const primitiveProps = rest as PrimitiveContentProps;
+  const motionProps = rest as MotionContentProps;
+
   return (
     <DialogPortal>
       <DialogOverlay />
-      <DialogPrimitive.Content asChild>
+      <DialogPrimitive.Content {...primitiveProps} asChild>
         <motion.div
-          ref={ref as any}
+          ref={ref as React.Ref<HTMLDivElement>}
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className={cn("dialog-content", className)}
-          {...props}
+          onDrag={onDrag}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          {...motionProps}
         >
           {children}
         </motion.div>
