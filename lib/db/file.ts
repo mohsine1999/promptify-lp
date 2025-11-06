@@ -16,7 +16,16 @@ export type StoredPage = {
 };
 
 const TMP_DIR = path.join("/tmp", "promptify-lp-data");
-const BLOB_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN?.trim() || "";
+const RAW_BLOB_TOKEN =
+  process.env.BLOB_READ_WRITE_TOKEN ??
+  process.env.VERCEL_BLOB_READ_WRITE_TOKEN ??
+  "";
+const BLOB_WRITE_TOKEN = RAW_BLOB_TOKEN.trim();
+const BLOB_TOKEN_SOURCE = process.env.BLOB_READ_WRITE_TOKEN
+  ? "BLOB_READ_WRITE_TOKEN"
+  : process.env.VERCEL_BLOB_READ_WRITE_TOKEN
+  ? "VERCEL_BLOB_READ_WRITE_TOKEN"
+  : null;
 const BLOB_API_BASE = process.env.BLOB_API_BASE_URL?.trim() || "https://api.vercel.com";
 const BLOB_PAGES_KEY = process.env.BLOB_PAGES_KEY?.trim() || "promptify/pages.json";
 const onVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true";
@@ -25,6 +34,10 @@ const USE_BLOB = onVercel && !!BLOB_WRITE_TOKEN;
 if (onVercel && !USE_BLOB) {
   console.warn(
     "BLOB_READ_WRITE_TOKEN not found – landing pages will only persist for the lifetime of a single serverless instance."
+  );
+} else if (USE_BLOB && BLOB_TOKEN_SOURCE) {
+  console.info(
+    `Using Vercel Blob persistence via ${BLOB_TOKEN_SOURCE}.`
   );
 }
 
@@ -62,8 +75,21 @@ function clonePages(list: StoredPage[]): StoredPage[] {
   return JSON.parse(JSON.stringify(list)) as StoredPage[];
 }
 
-async function fetchBlobJSON<T>(url: string): Promise<T | null> {
-  const res = await fetch(url);
+function normalizePages(data: unknown): StoredPage[] {
+  if (Array.isArray(data)) {
+    return data as StoredPage[];
+  }
+
+  if (data && typeof data === "object" && "id" in data && "doc" in data) {
+    const maybePage = data as StoredPage;
+    return [maybePage];
+  }
+
+  return [];
+}
+
+async function fetchBlobJSON<T>(url: string, init?: RequestInit): Promise<T | null> {
+  const res = await fetch(url, init);
   if (!res.ok) return null;
   try {
     return (await res.json()) as T;
@@ -98,15 +124,23 @@ async function readAllFromBlob(): Promise<StoredPage[]> {
     return [];
   }
 
-  const data = await fetchBlobJSON<StoredPage[]>(match.downloadUrl || match.url);
+  const data = await fetchBlobJSON<StoredPage[] | StoredPage>(
+    match.downloadUrl || match.url,
+    match.downloadUrl ? undefined : { headers: blobHeaders() }
+  );
   if (!data) {
-    await writeAllToBlob([]);
-    cachedPages = [];
-    return [];
+    throw new Error("Failed to parse blob contents as JSON");
   }
 
-  cachedPages = clonePages(data);
-  return clonePages(data);
+  const normalized = normalizePages(data);
+
+  if (!Array.isArray(data) && normalized.length) {
+    console.info("Migrated legacy blob data to array format");
+    await writeAllToBlob(normalized);
+  }
+
+  cachedPages = clonePages(normalized);
+  return clonePages(normalized);
 }
 
 async function writeAllToBlob(list: StoredPage[]) {
@@ -134,9 +168,16 @@ async function readAllFromFs(): Promise<StoredPage[]> {
   await ensureFs(FILE);
   try {
     const raw = await fsp.readFile(FILE, "utf-8");
-    const data = JSON.parse(raw) as StoredPage[];
-    cachedPages = clonePages(data);
-    return clonePages(data);
+    const parsed = JSON.parse(raw) as StoredPage[] | StoredPage;
+    const normalized = normalizePages(parsed);
+
+    if (!Array.isArray(parsed) && normalized.length) {
+      console.info("Migrated legacy filesystem data to array format");
+      await writeAllToFs(normalized);
+    }
+
+    cachedPages = clonePages(normalized);
+    return clonePages(normalized);
   } catch {
     return [];
   }
@@ -149,24 +190,16 @@ async function writeAllToFs(list: StoredPage[]) {
 }
 
 async function readAll(): Promise<StoredPage[]> {
-  try {
-    if (USE_BLOB) {
-      return await readAllFromBlob();
-    }
-  } catch (error) {
-    console.error("Falling back to filesystem storage after blob read failure", error);
+  if (USE_BLOB) {
+    return readAllFromBlob();
   }
   return readAllFromFs();
 }
 
 async function writeAll(list: StoredPage[]) {
   if (USE_BLOB) {
-    try {
-      await writeAllToBlob(list);
-      return;
-    } catch (error) {
-      console.error("Blob storage write failed, persisting to filesystem", error);
-    }
+    await writeAllToBlob(list);
+    return;
   }
   await writeAllToFs(list);
 }
