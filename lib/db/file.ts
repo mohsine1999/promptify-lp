@@ -75,8 +75,8 @@ function clonePages(list: StoredPage[]): StoredPage[] {
   return JSON.parse(JSON.stringify(list)) as StoredPage[];
 }
 
-async function fetchBlobJSON<T>(url: string): Promise<T | null> {
-  const res = await fetch(url);
+async function fetchBlobJSON<T>(url: string, init?: RequestInit): Promise<T | null> {
+  const res = await fetch(url, init);
   if (!res.ok) return null;
   try {
     return (await res.json()) as T;
@@ -111,11 +111,12 @@ async function readAllFromBlob(): Promise<StoredPage[]> {
     return [];
   }
 
-  const data = await fetchBlobJSON<StoredPage[]>(match.downloadUrl || match.url);
+  const data = await fetchBlobJSON<StoredPage[]>(
+    match.downloadUrl || match.url,
+    match.downloadUrl ? undefined : { headers: blobHeaders() }
+  );
   if (!data) {
-    await writeAllToBlob([]);
-    cachedPages = [];
-    return [];
+    throw new Error("Failed to parse blob contents as JSON");
   }
 
   cachedPages = clonePages(data);
@@ -162,24 +163,16 @@ async function writeAllToFs(list: StoredPage[]) {
 }
 
 async function readAll(): Promise<StoredPage[]> {
-  try {
-    if (USE_BLOB) {
-      return await readAllFromBlob();
-    }
-  } catch (error) {
-    console.error("Falling back to filesystem storage after blob read failure", error);
+  if (USE_BLOB) {
+    return readAllFromBlob();
   }
   return readAllFromFs();
 }
 
 async function writeAll(list: StoredPage[]) {
   if (USE_BLOB) {
-    try {
-      await writeAllToBlob(list);
-      return;
-    } catch (error) {
-      console.error("Blob storage write failed, persisting to filesystem", error);
-    }
+    await writeAllToBlob(list);
+    return;
   }
   await writeAllToFs(list);
 }
