@@ -16,7 +16,16 @@ export type StoredPage = {
 };
 
 const TMP_DIR = path.join("/tmp", "promptify-lp-data");
-const BLOB_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN?.trim() || "";
+const RAW_BLOB_TOKEN =
+  process.env.BLOB_READ_WRITE_TOKEN ??
+  process.env.VERCEL_BLOB_READ_WRITE_TOKEN ??
+  "";
+const BLOB_WRITE_TOKEN = RAW_BLOB_TOKEN.trim();
+const BLOB_TOKEN_SOURCE = process.env.BLOB_READ_WRITE_TOKEN
+  ? "BLOB_READ_WRITE_TOKEN"
+  : process.env.VERCEL_BLOB_READ_WRITE_TOKEN
+  ? "VERCEL_BLOB_READ_WRITE_TOKEN"
+  : null;
 const BLOB_API_BASE = process.env.BLOB_API_BASE_URL?.trim() || "https://api.vercel.com";
 const BLOB_PAGES_KEY = process.env.BLOB_PAGES_KEY?.trim() || "promptify/pages.json";
 const onVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true";
@@ -25,6 +34,10 @@ const USE_BLOB = onVercel && !!BLOB_WRITE_TOKEN;
 if (onVercel && !USE_BLOB) {
   console.warn(
     "BLOB_READ_WRITE_TOKEN not found – landing pages will only persist for the lifetime of a single serverless instance."
+  );
+} else if (USE_BLOB && BLOB_TOKEN_SOURCE) {
+  console.info(
+    `Using Vercel Blob persistence via ${BLOB_TOKEN_SOURCE}.`
   );
 }
 
