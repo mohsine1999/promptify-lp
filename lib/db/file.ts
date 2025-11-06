@@ -75,6 +75,19 @@ function clonePages(list: StoredPage[]): StoredPage[] {
   return JSON.parse(JSON.stringify(list)) as StoredPage[];
 }
 
+function normalizePages(data: unknown): StoredPage[] {
+  if (Array.isArray(data)) {
+    return data as StoredPage[];
+  }
+
+  if (data && typeof data === "object" && "id" in data && "doc" in data) {
+    const maybePage = data as StoredPage;
+    return [maybePage];
+  }
+
+  return [];
+}
+
 async function fetchBlobJSON<T>(url: string, init?: RequestInit): Promise<T | null> {
   const res = await fetch(url, init);
   if (!res.ok) return null;
@@ -111,7 +124,7 @@ async function readAllFromBlob(): Promise<StoredPage[]> {
     return [];
   }
 
-  const data = await fetchBlobJSON<StoredPage[]>(
+  const data = await fetchBlobJSON<StoredPage[] | StoredPage>(
     match.downloadUrl || match.url,
     match.downloadUrl ? undefined : { headers: blobHeaders() }
   );
@@ -119,8 +132,15 @@ async function readAllFromBlob(): Promise<StoredPage[]> {
     throw new Error("Failed to parse blob contents as JSON");
   }
 
-  cachedPages = clonePages(data);
-  return clonePages(data);
+  const normalized = normalizePages(data);
+
+  if (!Array.isArray(data) && normalized.length) {
+    console.info("Migrated legacy blob data to array format");
+    await writeAllToBlob(normalized);
+  }
+
+  cachedPages = clonePages(normalized);
+  return clonePages(normalized);
 }
 
 async function writeAllToBlob(list: StoredPage[]) {
@@ -148,9 +168,16 @@ async function readAllFromFs(): Promise<StoredPage[]> {
   await ensureFs(FILE);
   try {
     const raw = await fsp.readFile(FILE, "utf-8");
-    const data = JSON.parse(raw) as StoredPage[];
-    cachedPages = clonePages(data);
-    return clonePages(data);
+    const parsed = JSON.parse(raw) as StoredPage[] | StoredPage;
+    const normalized = normalizePages(parsed);
+
+    if (!Array.isArray(parsed) && normalized.length) {
+      console.info("Migrated legacy filesystem data to array format");
+      await writeAllToFs(normalized);
+    }
+
+    cachedPages = clonePages(normalized);
+    return clonePages(normalized);
   } catch {
     return [];
   }
