@@ -116,7 +116,10 @@ export async function POST(req: NextRequest) {
       const page = await db.create({ doc });
       if (page?.id) id = page.id;
     } catch (error: unknown) {
-      console.error("db.create failed (read-only FS in prod is likely):", (error as Error)?.message ?? error);
+      console.error(
+        "db.create failed (database persistence issue is likely):",
+        (error as Error)?.message ?? error
+      );
     }
 
     return NextResponse.json({ ok: true, id }, { status: 200 });
