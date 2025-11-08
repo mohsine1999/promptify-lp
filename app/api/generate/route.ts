@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       if (page?.id) id = page.id;
     } catch (error: unknown) {
       console.error(
-        "db.create failed (Supabase persistence issue is likely):",
+        "db.create failed (database persistence issue is likely):",
         (error as Error)?.message ?? error
       );
     }

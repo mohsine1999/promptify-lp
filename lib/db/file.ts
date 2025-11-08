@@ -1,3 +1,5 @@
+import { createHmac } from "crypto";
+
 import { buildDeploymentHost } from "@/lib/config/deployment";
 import type { LPDocument } from "@/lib/schema/page";
 
@@ -45,20 +47,83 @@ if (!SUPABASE_URL_SOURCE) {
   throw new Error("SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) must be configured");
 }
 
-const SUPABASE_KEY_SOURCE =
-  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-  process.env.SUPABASE_ANON_KEY?.trim() ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-if (!SUPABASE_KEY_SOURCE) {
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+const ANON_KEY =
+  process.env.SUPABASE_ANON_KEY?.trim() || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+const JWT_SECRET = process.env.SUPABASE_JWT_SECRET?.trim();
+
+if (!SERVICE_ROLE_KEY && (!ANON_KEY || !JWT_SECRET)) {
   throw new Error(
-    "A Supabase API key is required. Set SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    "Set SUPABASE_SERVICE_ROLE_KEY or provide both NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_JWT_SECRET"
   );
 }
 
 const SUPABASE_URL = SUPABASE_URL_SOURCE;
-const SUPABASE_KEY = SUPABASE_KEY_SOURCE;
-
 const REST_BASE = new URL("/rest/v1/", SUPABASE_URL);
+
+const SUPABASE_API_KEY = SERVICE_ROLE_KEY || ANON_KEY!;
+
+type CachedToken = { token: string; expiresAt: number } | null;
+let cachedAuthToken: CachedToken = null;
+
+function base64UrlEncode(input: Buffer | string) {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function decodeSupabaseSecret(secret: string): Buffer {
+  const normalized = secret.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
+  try {
+    const decoded = Buffer.from(normalized + padding, "base64");
+    if (decoded.length) return decoded;
+  } catch (error) {
+    console.warn("Failed to decode SUPABASE_JWT_SECRET as base64, using utf8 instead", error);
+  }
+  return Buffer.from(secret, "utf8");
+}
+
+function createServiceRoleToken(secret: string): CachedToken {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    role: "service_role",
+    iss: "promptify-db",
+    sub: "service_role",
+    aud: "authenticated",
+    exp: now + 60 * 10,
+    iat: now,
+  } as const;
+  const headerPart = base64UrlEncode(JSON.stringify(header));
+  const payloadPart = base64UrlEncode(JSON.stringify(payload));
+  const unsigned = `${headerPart}.${payloadPart}`;
+  const key = decodeSupabaseSecret(secret);
+  const signature = createHmac("sha256", key)
+    .update(unsigned)
+    .digest("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  const token = `${unsigned}.${signature}`;
+  return { token, expiresAt: payload.exp * 1000 - 5_000 };
+}
+
+function getSupabaseAuthToken(): string {
+  if (SERVICE_ROLE_KEY) {
+    return SERVICE_ROLE_KEY;
+  }
+  if (!JWT_SECRET) {
+    throw new Error("SUPABASE_JWT_SECRET must be provided when SUPABASE_SERVICE_ROLE_KEY is absent");
+  }
+  if (cachedAuthToken && cachedAuthToken.expiresAt > Date.now()) {
+    return cachedAuthToken.token;
+  }
+  cachedAuthToken = createServiceRoleToken(JWT_SECRET);
+  return cachedAuthToken.token;
+}
 
 function mapRow(row: SupabasePageRow): StoredPage {
   return {
@@ -84,8 +149,8 @@ async function supabaseFetch<T>(path: string, init: SupabaseRequestInit = {}): P
   }
 
   const headers = new Headers(requestInit.headers);
-  headers.set("apikey", SUPABASE_KEY);
-  headers.set("Authorization", `Bearer ${SUPABASE_KEY}`);
+  headers.set("apikey", SUPABASE_API_KEY);
+  headers.set("Authorization", `Bearer ${getSupabaseAuthToken()}`);
   if (requestInit.method && requestInit.method !== "GET") {
     headers.set("Content-Type", "application/json");
   }
