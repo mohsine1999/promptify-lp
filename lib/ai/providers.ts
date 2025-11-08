@@ -208,6 +208,7 @@ export async function generateWithOpenAI(params: GenerateParams): Promise<LPDocu
     try { doc = JSON.parse(choice.message.content); } catch {}
   }
 
+  console.log("[OpenAI] AI response before templating:", doc);
   return ensureComplete(doc as LPDocument, params.resolved, dialect, params.brief);
 }
 
@@ -283,5 +284,6 @@ export async function generateWithGemini(params: GenerateParams): Promise<LPDocu
   let doc: Partial<LPDocument> = {};
   const raw = res.text ?? "{}";       // <= default when undefined
   try { doc = JSON.parse(raw); } catch {}
+  console.log("[Gemini] AI response before templating:", doc);
   return ensureComplete(doc as LPDocument, params.resolved, dialect, params.brief);
 }
