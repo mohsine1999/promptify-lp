@@ -1,6 +1,3 @@
-import fs from "fs";
-import fsp from "fs/promises";
-import path from "path";
 import { buildDeploymentHost } from "@/lib/config/deployment";
 import type { LPDocument } from "@/lib/schema/page";
 
@@ -15,281 +12,258 @@ export type StoredPage = {
   updatedAt: string;
 };
 
-const TMP_DIR = path.join("/tmp", "promptify-lp-data");
-const RAW_BLOB_TOKEN =
-  process.env.BLOB_READ_WRITE_TOKEN ??
-  process.env.VERCEL_BLOB_READ_WRITE_TOKEN ??
-  "";
-const BLOB_WRITE_TOKEN = RAW_BLOB_TOKEN.trim();
-const BLOB_TOKEN_SOURCE = process.env.BLOB_READ_WRITE_TOKEN
-  ? "BLOB_READ_WRITE_TOKEN"
-  : process.env.VERCEL_BLOB_READ_WRITE_TOKEN
-  ? "VERCEL_BLOB_READ_WRITE_TOKEN"
-  : null;
-const BLOB_API_BASE = process.env.BLOB_API_BASE_URL?.trim() || "https://api.vercel.com";
-const BLOB_PAGES_KEY = process.env.BLOB_PAGES_KEY?.trim() || "promptify/pages.json";
-const onVercel = process.env.VERCEL === "1" || process.env.VERCEL === "true";
-const USE_BLOB = onVercel && !!BLOB_WRITE_TOKEN;
-
-if (onVercel && !USE_BLOB) {
-  console.warn(
-    "BLOB_READ_WRITE_TOKEN not found – landing pages will only persist for the lifetime of a single serverless instance."
-  );
-} else if (USE_BLOB && BLOB_TOKEN_SOURCE) {
-  console.info(
-    `Using Vercel Blob persistence via ${BLOB_TOKEN_SOURCE}.`
-  );
-}
-
-const blobHeaders = () => {
-  const headers = new Headers();
-  headers.set("Authorization", `Bearer ${BLOB_WRITE_TOKEN}`);
-  return headers;
+/**
+ * Supabase table schema (public.pages)
+ * - id text primary key
+ * - slug text unique
+ * - status text ('draft' | 'published')
+ * - domain text
+ * - published_at timestamptz null
+ * - doc jsonb
+ * - created_at timestamptz default now()
+ * - updated_at timestamptz default now()
+ * Ensure RLS policies permit the configured key to perform CRUD operations.
+ */
+type SupabasePageRow = {
+  id: string;
+  slug: string;
+  status: "draft" | "published";
+  domain: string | null;
+  published_at: string | null;
+  doc: LPDocument;
+  created_at: string;
+  updated_at: string;
 };
 
-async function ensureFs(filePath: string) {
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    await fsp.mkdir(dir, { recursive: true });
-  }
-  try {
-    await fsp.access(filePath, fs.constants.F_OK);
-  } catch {
-    await fsp.writeFile(filePath, JSON.stringify([]), "utf-8");
-  }
+type SupabaseRequestInit = RequestInit & {
+  searchParams?: Record<string, string | number | undefined>;
+};
+
+const SUPABASE_URL =
+  process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+const SUPABASE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+  process.env.SUPABASE_ANON_KEY?.trim() ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+if (!SUPABASE_URL) {
+  throw new Error("SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) must be configured");
 }
 
-function resolveDataDir() {
-  const configured = process.env.DATA_DIR?.trim();
-  if (configured) return configured;
-  if (process.env.VERCEL === "1" || process.env.VERCEL === "true") return TMP_DIR;
-  return path.join(process.cwd(), ".data");
-}
-
-const DATA_DIR = resolveDataDir();
-const FILE = path.join(DATA_DIR, "pages.json");
-
-let cachedPages: StoredPage[] | null = null;
-
-function clonePages(list: StoredPage[]): StoredPage[] {
-  return JSON.parse(JSON.stringify(list)) as StoredPage[];
-}
-
-function normalizePages(data: unknown): StoredPage[] {
-  if (Array.isArray(data)) {
-    return data as StoredPage[];
-  }
-
-  if (data && typeof data === "object" && "id" in data && "doc" in data) {
-    const maybePage = data as StoredPage;
-    return [maybePage];
-  }
-
-  return [];
-}
-
-async function fetchBlobJSON<T>(url: string, init?: RequestInit): Promise<T | null> {
-  const res = await fetch(url, init);
-  if (!res.ok) return null;
-  try {
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
-async function readAllFromBlob(): Promise<StoredPage[]> {
-  if (cachedPages) {
-    return clonePages(cachedPages);
-  }
-
-  const headers = blobHeaders();
-  const listUrl = new URL("/v2/blob/list", BLOB_API_BASE);
-  listUrl.searchParams.set("prefix", BLOB_PAGES_KEY);
-
-  const listRes = await fetch(listUrl, { headers });
-  if (!listRes.ok) {
-    throw new Error(`Failed to list blob entries (${listRes.status})`);
-  }
-
-  const listJson = (await listRes.json()) as {
-    blobs: { pathname: string; url: string; downloadUrl?: string }[];
-  };
-
-  const match = listJson.blobs.find((blob) => blob.pathname === BLOB_PAGES_KEY);
-
-  if (!match) {
-    await writeAllToBlob([]);
-    cachedPages = [];
-    return [];
-  }
-
-  const data = await fetchBlobJSON<StoredPage[] | StoredPage>(
-    match.downloadUrl || match.url,
-    match.downloadUrl ? undefined : { headers: blobHeaders() }
+if (!SUPABASE_KEY) {
+  throw new Error(
+    "A Supabase API key is required. Set SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY"
   );
-  if (!data) {
-    throw new Error("Failed to parse blob contents as JSON");
-  }
-
-  const normalized = normalizePages(data);
-
-  if (!Array.isArray(data) && normalized.length) {
-    console.info("Migrated legacy blob data to array format");
-    await writeAllToBlob(normalized);
-  }
-
-  cachedPages = clonePages(normalized);
-  return clonePages(normalized);
 }
 
-async function writeAllToBlob(list: StoredPage[]) {
-  const headers = blobHeaders();
-  headers.set("x-vercel-filename", BLOB_PAGES_KEY);
-  headers.set("x-vercel-blob-add-random-suffix", "false");
-  headers.set("x-vercel-blob-access", "private");
-  headers.set("Content-Type", "application/json");
+const REST_BASE = new URL("/rest/v1/", SUPABASE_URL);
 
-  const putUrl = new URL("/v2/blob/put", BLOB_API_BASE);
-  const res = await fetch(putUrl, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(list, null, 2),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to persist blob (${res.status})`);
-  }
-
-  cachedPages = clonePages(list);
+function mapRow(row: SupabasePageRow): StoredPage {
+  return {
+    id: row.id,
+    slug: row.slug,
+    status: row.status,
+    domain: row.domain ?? undefined,
+    publishedAt: row.published_at ? new Date(row.published_at).toISOString() : undefined,
+    doc: row.doc,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
 }
 
-async function readAllFromFs(): Promise<StoredPage[]> {
-  await ensureFs(FILE);
-  try {
-    const raw = await fsp.readFile(FILE, "utf-8");
-    const parsed = JSON.parse(raw) as StoredPage[] | StoredPage;
-    const normalized = normalizePages(parsed);
-
-    if (!Array.isArray(parsed) && normalized.length) {
-      console.info("Migrated legacy filesystem data to array format");
-      await writeAllToFs(normalized);
+async function supabaseFetch<T>(path: string, init: SupabaseRequestInit = {}): Promise<T> {
+  const { searchParams, ...requestInit } = init;
+  const url = new URL(path.replace(/^\//, ""), REST_BASE);
+  if (searchParams) {
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value === undefined) continue;
+      url.searchParams.set(key, String(value));
     }
-
-    cachedPages = clonePages(normalized);
-    return clonePages(normalized);
-  } catch {
-    return [];
   }
-}
 
-async function writeAllToFs(list: StoredPage[]) {
-  await ensureFs(FILE);
-  await fsp.writeFile(FILE, JSON.stringify(list, null, 2), "utf-8");
-  cachedPages = clonePages(list);
-}
-
-async function readAll(): Promise<StoredPage[]> {
-  if (USE_BLOB) {
-    return readAllFromBlob();
+  const headers = new Headers(requestInit.headers);
+  headers.set("apikey", SUPABASE_KEY);
+  headers.set("Authorization", `Bearer ${SUPABASE_KEY}`);
+  if (requestInit.method && requestInit.method !== "GET") {
+    headers.set("Content-Type", "application/json");
   }
-  return readAllFromFs();
+
+  const response = await fetch(url, {
+    ...requestInit,
+    headers,
+    cache: requestInit.cache ?? "no-store",
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Supabase request failed (${response.status}): ${text}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    // DELETE without return body returns 204 with no JSON
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
 }
 
-async function writeAll(list: StoredPage[]) {
-  if (USE_BLOB) {
-    await writeAllToBlob(list);
-    return;
-  }
-  await writeAllToFs(list);
-}
 function slugify(input: string) {
-  return (input || "page").toString().trim().toLowerCase()
-    .replace(/[^\u0600-\u06FFa-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").slice(0, 60);
+  return (input || "page")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^\u0600-\u06FFa-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 60);
 }
-function randomId() { return Math.random().toString(36).slice(2, 10); }
 
-function ensureUniqueSlug(list: StoredPage[], desired: string, excludeId?: string) {
+function randomId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
+  const params: Record<string, string> = {
+    slug: `eq.${slug}`,
+    select: "id",
+    limit: "1",
+  };
+  if (excludeId) {
+    params.id = `neq.${excludeId}`;
+  }
+  const rows = await supabaseFetch<SupabasePageRow[]>("pages", { searchParams: params });
+  return rows.length > 0;
+}
+
+async function ensureUniqueSlug(desired: string, excludeId?: string) {
   const base = desired && desired.length ? desired : "page";
   let candidate = base;
   let counter = 2;
-  while (list.some(page => page.slug === candidate && page.id !== excludeId)) {
+  while (await slugExists(candidate, excludeId)) {
     candidate = `${base}-${counter++}`;
   }
   return candidate;
 }
 
+async function getById(id: string): Promise<StoredPage | null> {
+  const rows = await supabaseFetch<SupabasePageRow[]>("pages", {
+    searchParams: {
+      select: "*",
+      id: `eq.${id}`,
+      limit: "1",
+    },
+  });
+  if (!rows.length) return null;
+  return mapRow(rows[0]);
+}
+
 export const db = {
   async list(): Promise<StoredPage[]> {
-    const all = await readAll();
-    return [...all].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    const rows = await supabaseFetch<SupabasePageRow[]>("pages", {
+      searchParams: {
+        select: "*",
+        order: "updated_at.desc",
+      },
+    });
+    return rows.map(mapRow);
   },
+
   async get(id: string): Promise<StoredPage | null> {
-    const all = await readAll();
-    return all.find((p) => p.id === id) || null;
+    return getById(id);
   },
+
   async create(input: { doc: LPDocument }): Promise<StoredPage> {
-    const all = await readAll();
+    const desiredSlug = slugify(input.doc.product?.name || "");
+    const slug = await ensureUniqueSlug(desiredSlug);
+    const now = new Date().toISOString();
     const id = randomId();
-    const desiredSlug = slugify(input.doc.product?.name || id) || id;
-    const slug = ensureUniqueSlug(all, desiredSlug, id);
-    const now = new Date().toISOString();
-    const page: StoredPage = {
-      id,
-      slug,
-      status: "draft",
-      domain: buildDeploymentHost(slug),
-      doc: input.doc,
-      createdAt: now,
-      updatedAt: now,
-    };
-    all.push(page);
-    await writeAll(all);
-    return page;
+    const domain = buildDeploymentHost(slug);
+    const [row] = await supabaseFetch<SupabasePageRow[]>("pages", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        id,
+        slug,
+        status: "draft",
+        domain,
+        doc: input.doc,
+        created_at: now,
+        updated_at: now,
+      }),
+    });
+    return mapRow(row);
   },
+
   async update(id: string, doc: LPDocument): Promise<StoredPage | null> {
-    const all = await readAll();
-    const idx = all.findIndex((p) => p.id === id);
-    if (idx === -1) return null;
     const now = new Date().toISOString();
-    all[idx] = { ...all[idx], doc, updatedAt: now };
-    await writeAll(all);
-    return all[idx];
+    const rows = await supabaseFetch<SupabasePageRow[]>("pages", {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      searchParams: {
+        id: `eq.${id}`,
+      },
+      body: JSON.stringify({
+        doc,
+        updated_at: now,
+      }),
+    });
+    if (!rows.length) return null;
+    return mapRow(rows[0]);
   },
+
   async publish(id: string): Promise<StoredPage | null> {
-    const all = await readAll();
-    const idx = all.findIndex((p) => p.id === id);
-    if (idx === -1) return null;
+    const existing = await getById(id);
+    if (!existing) return null;
+    const desiredSlug = slugify(
+      existing.doc.product?.name || existing.slug || existing.id
+    );
+    const slug = await ensureUniqueSlug(desiredSlug, existing.id);
     const now = new Date().toISOString();
-    const current = all[idx];
-    const desiredSlug = slugify(current.doc.product?.name || current.slug || current.id) || current.slug || current.id;
-    const slug = ensureUniqueSlug(all, desiredSlug, current.id);
-    if (current.status === "published") {
-      const updated = { ...current, slug, domain: buildDeploymentHost(slug), updatedAt: now };
-      all[idx] = updated;
-      await writeAll(all);
-      return updated;
-    }
-    const published: StoredPage = {
-      ...current,
+    const domain = buildDeploymentHost(slug);
+
+    const body: Partial<SupabasePageRow> & Record<string, unknown> = {
       slug,
-      status: "published",
-      publishedAt: now,
-      updatedAt: now,
-      domain: buildDeploymentHost(slug),
+      domain,
+      updated_at: now,
     };
-    all[idx] = published;
-    await writeAll(all);
-    return published;
+
+    if (existing.status !== "published") {
+      body.status = "published" as const;
+      body.published_at = now;
+    }
+
+    const rows = await supabaseFetch<SupabasePageRow[]>("pages", {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      searchParams: {
+        id: `eq.${id}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!rows.length) return null;
+    return mapRow(rows[0]);
   },
+
   async findBySlug(slug: string): Promise<StoredPage | null> {
-    const all = await readAll();
-    return all.find((p) => p.slug === slug) || null;
+    const rows = await supabaseFetch<SupabasePageRow[]>("pages", {
+      searchParams: {
+        select: "*",
+        slug: `eq.${slug}`,
+        limit: "1",
+      },
+    });
+    if (!rows.length) return null;
+    return mapRow(rows[0]);
   },
+
   async delete(id: string): Promise<boolean> {
-    const all = await readAll();
-    const out = all.filter((p) => p.id !== id);
-    await writeAll(out);
-    return true;
+    const rows = await supabaseFetch<SupabasePageRow[]>("pages", {
+      method: "DELETE",
+      headers: { Prefer: "return=representation" },
+      searchParams: {
+        id: `eq.${id}`,
+      },
+    });
+    return Array.isArray(rows) && rows.length > 0;
   },
 };
