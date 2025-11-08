@@ -6,7 +6,40 @@ import { useEffect, useState } from "react";
 export default function Dashboard() {
   const [pages, setPages] = useState<any[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  useEffect(() => { fetch("/api/pages").then(r => r.json()).then(d => setPages(d.pages || [])); }, []);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoadError(null);
+        const res = await fetch("/api/pages", { cache: "no-store" });
+        if (!res.ok) {
+          throw new Error(`REQUEST_FAILED_${res.status}`);
+        }
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error("UNEXPECTED_CONTENT_TYPE");
+        }
+        const data = await res.json();
+        if (!cancelled) {
+          const nextPages = Array.isArray(data?.pages) ? data.pages : [];
+          setPages(nextPages);
+        }
+      } catch (error) {
+        console.error("failed to load pages", error);
+        if (!cancelled) {
+          setLoadError("تعذّر تحميل الصفحات. حاول تحديث الصفحة.");
+          setPages([]);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const deletePage = async (id: string) => {
     if (deletingId === id) return;
@@ -40,7 +73,12 @@ export default function Dashboard() {
           <Link className="btn primary" href="/generate">+ إنشاء صفحة</Link>
         </div>
 
-        {pages.length === 0 ? (
+        {loadError ? (
+          <div className="info-banner" role="alert" style={{ marginTop: 24 }}>
+            <strong>حدث خطأ أثناء تحميل الصفحات</strong>
+            <span className="small">{loadError}</span>
+          </div>
+        ) : pages.length === 0 ? (
           <div className="info-banner" style={{ marginTop: 24 }}>
             <strong>لم تنشئ أي صفحة بعد</strong>
             <span className="small">ابدأ من خلال توليد صفحة جديدة، وسنضيفها هنا تلقائياً مع تفاصيلها.</span>

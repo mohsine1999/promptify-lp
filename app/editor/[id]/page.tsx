@@ -17,18 +17,37 @@ export default function Editor() {
   const [imageAltInput, setImageAltInput] = useState("");
 
   useEffect(() => {
-    setErr(null);
-    fetch(`/api/pages/${id}`)
-      .then(r => {
-        if (!r.ok) throw new Error("LOAD_FAILED");
-        return r.json();
-      })
-      .then(d => {
-        setDoc(d.doc);
-        setPage(d);
-        setDeployFlash(false);
-      })
-      .catch(() => setErr("تعذّر التحميل"));
+    let cancelled = false;
+    const load = async () => {
+      setErr(null);
+      try {
+        const res = await fetch(`/api/pages/${id}`, { cache: "no-store" });
+        if (!res.ok) {
+          throw new Error(`LOAD_FAILED_${res.status}`);
+        }
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error("UNEXPECTED_CONTENT_TYPE");
+        }
+        const data = await res.json();
+        if (!cancelled) {
+          const nextPage = data && typeof data === "object" ? data : null;
+          setPage(nextPage);
+          setDoc(nextPage?.doc ?? null);
+          setDeployFlash(false);
+        }
+      } catch (error) {
+        console.error("failed to load editor page", error);
+        if (!cancelled) {
+          setErr("تعذّر التحميل");
+          setDoc(null);
+        }
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   async function save() {
@@ -39,8 +58,12 @@ export default function Editor() {
         method: "PUT", headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ doc })
       });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("INVALID_SAVE_RESPONSE");
+      }
       const d = await res.json();
-      if (!d.ok) throw new Error(d.error || "فشل الحفظ");
+      if (!res.ok || !d?.ok) throw new Error(d?.error || "فشل الحفظ");
       setDoc(d.doc);
       setPage(d);
       setSaved(true); setTimeout(()=>setSaved(false), 1500);
@@ -52,8 +75,12 @@ export default function Editor() {
     setDeploying(true); setErr(null);
     try {
       const res = await fetch(`/api/pages/${id}/deploy`, { method: "POST" });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("INVALID_DEPLOY_RESPONSE");
+      }
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "فشل النشر");
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "فشل النشر");
       const nextPage = data.page || data;
       if (nextPage?.doc) setDoc(nextPage.doc);
       setPage(nextPage);
