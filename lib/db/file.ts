@@ -118,10 +118,16 @@ function getSupabaseAuthToken(): string {
   if (!JWT_SECRET) {
     throw new Error("SUPABASE_JWT_SECRET must be provided when SUPABASE_SERVICE_ROLE_KEY is absent");
   }
-  if (cachedAuthToken && cachedAuthToken.expiresAt > Date.now()) {
-    return cachedAuthToken.token;
+
+  const tokenIsValid = cachedAuthToken && cachedAuthToken.expiresAt > Date.now();
+  if (!tokenIsValid) {
+    cachedAuthToken = createServiceRoleToken(JWT_SECRET);
   }
-  cachedAuthToken = createServiceRoleToken(JWT_SECRET);
+
+  if (!cachedAuthToken) {
+    throw new Error("Failed to generate Supabase service role token");
+  }
+
   return cachedAuthToken.token;
 }
 
