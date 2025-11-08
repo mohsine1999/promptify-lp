@@ -39,22 +39,24 @@ type SupabaseRequestInit = RequestInit & {
   searchParams?: Record<string, string | number | undefined>;
 };
 
-const SUPABASE_URL =
+const SUPABASE_URL_SOURCE =
   process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-const SUPABASE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-  process.env.SUPABASE_ANON_KEY?.trim() ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-
-if (!SUPABASE_URL) {
+if (!SUPABASE_URL_SOURCE) {
   throw new Error("SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) must be configured");
 }
 
-if (!SUPABASE_KEY) {
+const SUPABASE_KEY_SOURCE =
+  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+  process.env.SUPABASE_ANON_KEY?.trim() ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+if (!SUPABASE_KEY_SOURCE) {
   throw new Error(
     "A Supabase API key is required. Set SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY"
   );
 }
+
+const SUPABASE_URL = SUPABASE_URL_SOURCE;
+const SUPABASE_KEY = SUPABASE_KEY_SOURCE;
 
 const REST_BASE = new URL("/rest/v1/", SUPABASE_URL);
 
